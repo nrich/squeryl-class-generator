@@ -8,7 +8,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Std qw/getopts/;
 
 my %opts = ();
-getopts('hd:u:p:s:c:H:P:', \%opts);
+getopts('hd:u:p:c:S:H:P:', \%opts);
 main(@ARGV);
 
 sub usage {
@@ -91,6 +91,14 @@ EOF
         my @defaults = ();
         my @no_default = ();
         my @build_default = ();
+        my @no_default_obj = ();
+        my @build_default_obj = ();
+        my $has_default_obj = 0;
+        my $has_full_obj = 0;
+        
+        my @default_full = ();
+        my @build_default_full = ();
+
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
             next if $column eq 'id';
 
@@ -102,11 +110,60 @@ EOF
             my $col_default = type_default($type, $nullable, $default);
             push @defaults, $col_default;
 
+            my $refers = $structure->{$table}->{columns}->{$column}->{refers};
+
             if ($default||$nullable) {
                 push @build_default, $col_default;
+                push @build_default_obj, $col_default;
+
+                if ($refers and %$refers and scalar keys %$refers == 1) {
+
+                    my $othertable = (keys %$refers)[0];
+                    my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
+                    my $othertype = table_to_classname($schema, $othertable);
+
+                    (my $paramname = $attribname) =~ s/ID$//;
+
+                    if ($nullable) {
+                        push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib) }";
+                        push @default_full, "${paramname}: Option[${othertype}]"; 
+                    } else {
+                        $has_full_obj = 1;
+                        push @build_default_full, "$paramname.$otherattrib";
+                        push @default_full, "${paramname}: ${othertype}"; 
+                    }
+
+                } else {
+                    push @default_full, "${attribname}: ${type}"; 
+                    if ($nullable) {
+                        push @build_default_full, "$attribname"; 
+                    } else {
+                        push @build_default_full, $attribname; 
+                    }
+                }
             } else {
                 push @no_default, "${attribname}: ${type}";
                 push @build_default, $attribname;
+
+                if ($refers and %$refers and scalar keys %$refers == 1) {
+                    $has_default_obj = 1;
+
+                    my $othertable = (keys %$refers)[0];
+                    my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
+                    my $othertype = table_to_classname($schema, $othertable);
+
+                    (my $paramname = $attribname) =~ s/ID$//;
+
+                    push @no_default_obj, "${paramname}: ${othertype}";
+                    push @build_default_obj, "$paramname.$otherattrib";
+                    push @default_full, "${paramname}: ${othertype}"; 
+                    push @build_default_full, "$paramname.$otherattrib"; 
+                } else {
+                    push @no_default_obj, "${attribname}: ${type}";
+                    push @build_default_obj, $attribname;
+                    push @default_full, "${attribname}: ${type}";
+                    push @build_default_full, $attribname; 
+                }
             }
 
             my $col = '';
@@ -144,7 +201,7 @@ EOF
                         $plural = pluralize($otherattrib);
                     }
 
-                    push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] = ${schema_name}Schema.${fkey}.left(this)";
+                    push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
                 }
             } 
 
@@ -159,19 +216,32 @@ EOF
                     my $otherattrib = attribname($column);
                     $otherattrib =~ s/ID$//;
 
-                    push @fkeys, "\tlazy val $otherattrib: $otherclassname = ${schema_name}Schema.${fkey}.right(this).single";
+                    push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
                 }
             } 
         } 
 
-        my $default_list = '';
+        my $default_list = "\t//No default constructor";
         if (@defaults) {
             $default_list = join(', ', @defaults);
         }
 
-        my $build_default_list = '';
-        if (@no_default) {
-            $build_default_list = "\tdef this(" . (join ', ', @no_default) . ') = this(' . (join ', ', @build_default) . ')';
+        my $build_default_list = "\t//No simple constructor";
+        my $build_default_obj_list = "\t//No simple object constructor";
+        my $default_obj_list = "\t//No full object constructor";
+
+        if (scalar @no_default != scalar @build_default) {
+            $build_default_list = "\tdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', @build_default) . ')';
+        }
+
+        if ($has_default_obj) {
+            $build_default_obj_list = "\tdef this(" . (join ', ', @no_default_obj) . ") =\n\t\tthis(" . (join ', ', @build_default_obj) . ')';  
+
+            if (scalar @no_default_obj != scalar @default_full) {
+                $default_obj_list = "\tdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+            }
+        } elsif ($has_full_obj) {
+            $default_obj_list = "\tdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
         }
 
         my $collist = join (",\n", @cols);
@@ -182,8 +252,11 @@ EOF
 class $classname ( 
 $collist
 ) extends ${schema_name}Db2Object {
-\tdef this() = this($default_list)
+\tdef this() = 
+\t\tthis($default_list)
 $build_default_list
+$build_default_obj_list
+$default_obj_list
 $fkeyslist
 }
 
