@@ -389,6 +389,12 @@ sub type_default {
     my ($type, $nullable, $defaultval) = @_;
 
     if ($defaultval) {
+        if ($type eq 'String') {
+            if ($defaultval =~ /^'(.+?)'\:\:character varying/) {
+                return "\"$1\"";
+            }
+        }
+
         return {
             'now()' => 'new Timestamp(System.currentTimeMillis)',
         }->{$defaultval} || $defaultval;
@@ -520,7 +526,7 @@ sub pluralize {
 
     $text = $text =~ /s$/ ? "${text}es" : "${text}s";
 
-    $text =~ s/eses/es/;
+    $text =~ s/eses$/es/;
 
     return $text;
 }
