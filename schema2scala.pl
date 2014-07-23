@@ -201,7 +201,21 @@ EOF
                         $plural = pluralize($otherattrib);
                     }
 
-                    push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
+                    my $is_unique = 0;
+
+                    my @indexes = keys %{$structure->{$othertable}->{columns}->{$othercol}->{indexes}||{}};
+
+                    if (scalar @indexes == 1 and $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$indexes[0]}) {
+                        $is_unique = 1;
+                    }
+
+                    if ($is_unique) {
+                        my $optcol = $explicit ? attribname($othercol) : $plural; 
+
+                        push @fkeys, "\tlazy val $plural: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
+                    } else {
+                        push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
+                    }
                 }
             } 
 
@@ -210,13 +224,19 @@ EOF
                 my $plural = pluralize($othertable);
                 $plural =~ s/${schema}_//;
 
+                my $nullable = uc $structure->{$table}->{columns}->{$column}->{nulls} eq 'YES' ? 1 : 0;
+
                 for my $othercol (keys %{$refers->{$othertable}}) {
                     my $fkey = $refers->{$othertable}->{$othercol};
 
                     my $otherattrib = attribname($column);
                     $otherattrib =~ s/ID$//;
 
-                    push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
+                    if ($nullable) {
+                        push @fkeys, "\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.right(this).headOption";
+                    } else {
+                        push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
+                    }
                 }
             } 
         } 
@@ -294,7 +314,9 @@ EOF
                 for my $index (sort {length $a <=> length $b} keys %$indexes) {
                     next if $index =~ /_like$/;
 
-                    if ($index =~ /uniq/) {
+                    my $is_unique = $structure->{$table}->{columns}->{$column}->{indexes}->{$index}; 
+
+                    if ($is_unique) {
                         unshift @attribs, 'unique';
                     } else {
                         push @attribs, "indexed(\"$index\")";
@@ -459,7 +481,8 @@ sub generate_index {
 select
     t.relname as table_name,
     i.relname as index_name,
-    a.attname as column_name
+    a.attname as column_name,
+    ix.indisunique as is_unique
 from
     pg_class t,
     pg_class i,
@@ -477,8 +500,8 @@ EOF
     my $sth = $dbh->prepare($index_query);
     $sth->execute($tablename);
 
-    while (my ($table, $index, $column) = $sth->fetchrow_array()) {
-        $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = 1;
+    while (my ($table, $index, $column, $is_unique) = $sth->fetchrow_array()) {
+        $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $is_unique;
     }
 
     return $structure;
