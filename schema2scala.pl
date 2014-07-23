@@ -210,10 +210,17 @@ EOF
                     }
 
                     if ($is_unique) {
-                        my $optcol = $explicit ? attribname($othercol) : $plural; 
+                        my $optcol = attribname($othercol);
 
-                        push @fkeys, "\tlazy val $plural: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
+                        if (!$explicit) {
+                            $optcol = $othertable;
+                            $optcol =~ s/${schema}_//;
+                            $optcol = attribname($optcol);
+                        }
+
+                        push @fkeys, "\tlazy val $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
                     } else {
+                        $plural = attribname($plural);
                         push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
                     }
                 }
