@@ -87,6 +87,62 @@ EOF
     for my $table (sort keys %$structure) {
         my $classname = table_to_classname($schema, $table);
 
+        my $values = '';
+
+        if ($table =~ /lookup$/) {
+            my @values = ();
+            my @prints = ();
+            my @ints = ();
+            my @strings = ();
+
+            for my $val (@{$structure->{$table}->{enum}}) {
+                my ($id, $name) = @$val;
+                
+                next unless $name;
+
+                my $attrib = ucfirst attribname($name);
+
+                push @values, "\tval $attrib = Value($id, \"$name\")";
+                push @prints, "\t\t\tcase $attrib => return \"$name\"";
+                push @ints, "\t\t\tcase $id => return $attrib";
+                push @strings, "\t\t\tcase \"$name\" => return $attrib";
+            } 
+
+            push @prints, "\t\t\tcase _ => throw new IllegalArgumentException";
+            push @ints, "\t\t\tcase _ => throw new IllegalArgumentException";
+            push @strings, "\t\t\tcase _ => throw new IllegalArgumentException";
+
+            my $values_list = join("\n", @values);
+            my $prints_list = join("\n", @prints);
+            my $ints_list = join("\n", @ints);
+            my $strings_list = join("\n", @strings);
+
+            print <<EOF;
+object $classname extends Enumeration {
+\ttype $classname = Value
+$values_list
+
+\tdef asString(v:$classname): String =
+\t\tv match {
+$prints_list
+\t}
+
+\tdef from(v:Int): $classname =
+\t\tv match {
+$ints_list
+\t}
+
+\tdef from(v:String): $classname =
+\t\tv match {
+$strings_list
+\t}
+
+}
+EOF
+            next;
+        }
+
+
         my @cols = ();
         my @defaults = ();
         my @no_default = ();
@@ -108,31 +164,31 @@ EOF
 
             my $type = type_lookup($structure->{$table}->{columns}->{$column}->{type}, $nullable);
             my $col_default = type_default($type, $nullable, $default);
-            push @defaults, $col_default;
 
             my $refers = $structure->{$table}->{columns}->{$column}->{refers};
 
             if ($default||$nullable) {
-                push @build_default, $col_default;
-                push @build_default_obj, $col_default;
-
                 if ($refers and %$refers and scalar keys %$refers == 1) {
-
                     my $othertable = (keys %$refers)[0];
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
                     my $othertype = table_to_classname($schema, $othertable);
 
                     (my $paramname = $attribname) =~ s/ID$//;
 
-                    if ($nullable) {
-                        push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib) }";
-                        push @default_full, "${paramname}: Option[${othertype}]"; 
+                    if ($structure->{$othertable}->{enum}) {
+                        $type = "$othertype.$othertype";
+                        $attribname = $paramname;
+                        $col_default = "$othertype.from($default)";
                     } else {
-                        $has_full_obj = 1;
-                        push @build_default_full, "$paramname.$otherattrib";
-                        push @default_full, "${paramname}: ${othertype}"; 
+                        if ($nullable) {
+                            push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib) }";
+                            push @default_full, "${paramname}: Option[${othertype}]"; 
+                        } else {
+                            $has_full_obj = 1;
+                            push @build_default_full, "$paramname.$otherattrib";
+                            push @default_full, "${paramname}: ${othertype}"; 
+                        }
                     }
-
                 } else {
                     push @default_full, "${attribname}: ${type}"; 
                     if ($nullable) {
@@ -141,6 +197,9 @@ EOF
                         push @build_default_full, $attribname; 
                     }
                 }
+
+                push @build_default, $col_default;
+                push @build_default_obj, $col_default;
             } else {
                 push @no_default, "${attribname}: ${type}";
                 push @build_default, $attribname;
@@ -165,6 +224,8 @@ EOF
                     push @build_default_full, $attribname; 
                 }
             }
+
+            push @defaults, $col_default;
 
             my $col = '';
 
@@ -239,10 +300,14 @@ EOF
                     my $otherattrib = attribname($column);
                     $otherattrib =~ s/ID$//;
 
-                    if ($nullable) {
-                        push @fkeys, "\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.right(this).headOption";
+                    if ($structure->{$othertable}->{enum}) {
+                        
                     } else {
-                        push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
+                        if ($nullable) {
+                            push @fkeys, "\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.right(this).headOption";
+                        } else {
+                            push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
+                        }
                     }
                 }
             } 
@@ -295,6 +360,8 @@ object ${schema_name}Schema extends Schema {
 EOF
 
     for my $table (sort keys %$structure) {
+        next if $structure->{$table}->{enum};
+
         (my $varname = $table) =~ s/${schema}_//;
         $varname = lc $varname;
 
@@ -372,6 +439,7 @@ EOF
                 for my $othercol (keys %{$fkeys->{$fkey}}) {
                     my $nullable = uc $structure->{$fkey}->{columns}->{$othercol}->{nulls} eq 'YES' ? 1 : 0;
                     next if $nullable;
+                    next if $structure->{$fkey}->{enum};
 
                     my $fkey_name = $fkeys->{$fkey}->{$othercol};
 
@@ -465,6 +533,19 @@ EOF
 
     my $structure = {};
     while (my ($column, $datatype, $table, $maxlen, $nullable, $default) = $sth->fetchrow_array()) {
+
+        if ($table =~ /lookup$/ and $column ne 'id') {
+            my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
+            $rsth->execute();
+
+            my @enum = [];
+            while (my ($id, $name) = $rsth->fetchrow_array()) {
+                push @enum, [$id, $name];
+            }
+
+            $structure->{$table}->{enum} = \@enum;
+        }
+
         $default ||= '';
         $default = $default =~ /^nextval/ ? undef : $default;
 
@@ -545,7 +626,8 @@ EOF
 sub table_to_classname {
     my ($schema, $table) = @_;
 
-    (my $classname = $table) =~ s/${schema}_//;
+    (my $classname = $table) =~ s/^${schema}_//;
+    $classname =~ s/_lookup$//;
     $classname = join('', map {ucfirst} split '_', lc $classname);
 
     return $classname;
