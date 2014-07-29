@@ -125,17 +125,17 @@ $values_list
 \tdef asString(v:$classname): String =
 \t\tv match {
 $prints_list
-\t}
+\t\t}
 
 \tdef from(v:Int): $classname =
 \t\tv match {
 $ints_list
-\t}
+\t\t}
 
 \tdef from(v:String): $classname =
 \t\tv match {
 $strings_list
-\t}
+\t\t}
 
 }
 EOF
