@@ -122,17 +122,17 @@ object $classname extends Enumeration {
 \ttype $classname = Value
 $values_list
 
-\tdef asString(v:$classname): String =
+\tdef asString(v: $classname): String =
 \t\tv match {
 $prints_list
 \t\t}
 
-\tdef from(v:Int): $classname =
+\tdef from(v: Int): $classname =
 \t\tv match {
 $ints_list
 \t\t}
 
-\tdef from(v:String): $classname =
+\tdef from(v :String): $classname =
 \t\tv match {
 $strings_list
 \t\t}
@@ -173,7 +173,7 @@ EOF
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
                     my $othertype = table_to_classname($schema, $othertable);
 
-                    (my $paramname = $attribname) =~ s/ID$//;
+                    (my $paramname = $attribname) =~ s/Id$//;
 
                     if ($structure->{$othertable}->{enum}) {
                         $type = "$othertype.$othertype";
@@ -211,7 +211,7 @@ EOF
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
                     my $othertype = table_to_classname($schema, $othertable);
 
-                    (my $paramname = $attribname) =~ s/ID$//;
+                    (my $paramname = $attribname) =~ s/Id$//;
 
                     push @no_default_obj, "${paramname}: ${othertype}";
                     push @build_default_obj, "$paramname.$otherattrib";
@@ -298,7 +298,7 @@ EOF
                     my $fkey = $refers->{$othertable}->{$othercol};
 
                     my $otherattrib = attribname($column);
-                    $otherattrib =~ s/ID$//;
+                    $otherattrib =~ s/Id$//;
 
                     if ($structure->{$othertable}->{enum}) {
                         
@@ -649,7 +649,7 @@ sub attribname {
     return 'id' if $column eq 'id';
 
     my $attribname = lc $column;
-    $attribname =~ s/id$/ID/g;
+    $attribname =~ s/_id$/Id/g;
     $attribname = lcfirst join '', map {ucfirst $_} split /[\_\-]/, $attribname;
 
     return $attribname;
