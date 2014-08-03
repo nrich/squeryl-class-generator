@@ -72,7 +72,7 @@ package $package
 
 import org.squeryl.PrimitiveTypeMode._
 import org.squeryl.Schema
-import org.squeryl.annotations.Column
+import org.squeryl.annotations.{Column, Transient}
 import java.util.Date
 import java.sql.Timestamp
 import org.squeryl.KeyedEntity
@@ -179,6 +179,9 @@ EOF
                         $type = "$othertype.$othertype";
                         $attribname = $paramname;
                         $col_default = "$othertype.from($default)";
+
+                        push @build_default_full, "$attribname";
+                        push @default_full, "$attribname: $type"; 
                     } else {
                         if ($nullable) {
                             push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib) }";
@@ -279,7 +282,8 @@ EOF
                             $optcol = attribname($optcol);
                         }
 
-                        push @fkeys, "\tlazy val $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
+                        #push @fkeys, "\tlazy val $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
+                        push @fkeys, "\tlazy val $optcol: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.left(this).single";
                     } else {
                         $plural = attribname($plural);
                         push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
@@ -304,7 +308,7 @@ EOF
                         
                     } else {
                         if ($nullable) {
-                            push @fkeys, "\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.right(this).headOption";
+                            push @fkeys, "\t\@Transient\n\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t$attribname match {\n\t\t\tcase Some(x) => ${schema_name}Schema.${fkey}.right(this).headOption\n\t\t\tcase None => None\n\t\t}";
                         } else {
                             push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
                         }
@@ -500,6 +504,7 @@ sub type_default {
     if ($nullable) {
         return {
             'Option[Int]' => 'Some(0)',
+            'Option[Long]' => 'Some(0)',
         }->{$type} || 'None';
     }
 
