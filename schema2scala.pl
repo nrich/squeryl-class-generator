@@ -78,9 +78,11 @@ import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
 
+/*
 class ${schema_name}Db2Object extends KeyedEntity[Long] {
 \tval id: Long = 0
 }
+*/
 
 EOF
 
@@ -155,8 +157,12 @@ EOF
         my @default_full = ();
         my @build_default_full = ();
 
+        my $idtype = 'Long';
+
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
-            next if $column eq 'id';
+            if ($column eq 'id') {
+                $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});;
+            }
 
             my $attribname = attribname($column);
             my $nullable = uc $structure->{$table}->{columns}->{$column}->{nulls} eq 'YES' ? 1 : 0;
@@ -345,9 +351,9 @@ EOF
         my $fkeyslist = join ("\n", @fkeys);
 
         print <<EOF;
-class $classname ( 
+class $classname (
 $collist
-) extends ${schema_name}Db2Object {
+) extends KeyedEntity[$idtype] {
 \tdef this() = 
 \t\tthis($default_list)
 $build_default_list
@@ -493,6 +499,10 @@ sub type_default {
         if ($type eq 'String') {
             if ($defaultval =~ /^'(.+?)'\:\:character varying/) {
                 return "\"$1\"";
+            }
+        } elsif ($type eq 'Timestamp') {
+            if ($defaultval =~ /^'(.+?)'\:\:date/) {
+                return "Timestamp.valueOf(\"$1\")";
             }
         }
 
