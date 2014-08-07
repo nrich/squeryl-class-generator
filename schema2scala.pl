@@ -140,7 +140,6 @@ $ints_list
 \t\tv match {
 $strings_list
 \t\t}
-
 }
 
 EOF
