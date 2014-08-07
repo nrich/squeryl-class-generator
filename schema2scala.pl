@@ -86,7 +86,6 @@ class ${schema_name}Db2ObjectLong extends KeyedEntity[Long] {
 \tval id: Long = 0
 }
 
-
 EOF
 
     for my $table (sort keys %$structure) {
@@ -143,6 +142,7 @@ $strings_list
 \t\t}
 
 }
+
 EOF
             next;
         }
