@@ -78,11 +78,14 @@ import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
 
-/*
-class ${schema_name}Db2Object extends KeyedEntity[Long] {
+class ${schema_name}Db2ObjectInt extends KeyedEntity[Int] {
+\tval id: Int = 0
+}
+
+class ${schema_name}Db2ObjectLong extends KeyedEntity[Long] {
 \tval id: Long = 0
 }
-*/
+
 
 EOF
 
@@ -161,7 +164,8 @@ EOF
 
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
             if ($column eq 'id') {
-                $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});;
+                $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});
+                next;
             }
 
             my $attribname = attribname($column);
@@ -353,7 +357,7 @@ EOF
         print <<EOF;
 class $classname (
 $collist
-) extends KeyedEntity[$idtype] {
+) extends ${schema_name}Db2Object${idtype} {
 \tdef this() = 
 \t\tthis($default_list)
 $build_default_list
