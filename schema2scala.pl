@@ -517,8 +517,8 @@ sub type_default {
 
     if ($nullable) {
         return {
-            'Option[Int]' => 'Some(0)',
-            'Option[Long]' => 'Some(0L)',
+#            'Option[Int]' => 'Some(0)',
+#            'Option[Long]' => 'Some(0L)',
         }->{$type} || 'None';
     }
 
