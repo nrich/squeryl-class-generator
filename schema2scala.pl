@@ -102,8 +102,6 @@ EOF
             for my $val (@{$structure->{$table}->{enum}}) {
                 my ($id, $name) = @$val;
                 
-                next unless $name;
-
                 my $attrib = ucfirst attribname($name);
 
                 push @values, "\tval $attrib = Value($id, \"$name\")";
@@ -213,9 +211,6 @@ EOF
                 push @build_default, $col_default;
                 push @build_default_obj, $col_default;
             } else {
-                push @no_default, "${attribname}: ${type}";
-                push @build_default, $attribname;
-
                 if ($refers and %$refers and scalar keys %$refers == 1) {
                     $has_default_obj = 1;
 
@@ -225,11 +220,34 @@ EOF
 
                     (my $paramname = $attribname) =~ s/Id$//;
 
-                    push @no_default_obj, "${paramname}: ${othertype}";
-                    push @build_default_obj, "$paramname.$otherattrib";
-                    push @default_full, "${paramname}: ${othertype}"; 
-                    push @build_default_full, "$paramname.$otherattrib"; 
+                    if ($structure->{$othertable}->{enum}) {
+                        $type = "$othertype.$othertype";
+                        $attribname = $paramname;
+
+                        my $defval = $structure->{$othertable}->{enum}->[0]->[0];
+                        $col_default = "$othertype.from($defval)";
+
+                        push @no_default, "${paramname}: ${type}";
+                        push @build_default, $attribname;
+                       
+                        push @no_default_obj, "${paramname}: ${type}";
+                        push @build_default_obj, "$attribname";
+
+                        push @default_full, "$attribname: $type";
+                        push @build_default_full, "$attribname";
+                    } else {
+                        push @no_default, "${attribname}: ${type}";
+                        push @build_default, $attribname;
+
+                        push @no_default_obj, "${paramname}: ${othertype}";
+                        push @build_default_obj, "$paramname.$otherattrib";
+                        push @default_full, "${paramname}: ${othertype}"; 
+                        push @build_default_full, "$paramname.$otherattrib"; 
+                    }
                 } else {
+                    push @no_default, "${attribname}: ${type}";
+                    push @build_default, $attribname;
+
                     push @no_default_obj, "${attribname}: ${type}";
                     push @build_default_obj, $attribname;
                     push @default_full, "${attribname}: ${type}";
@@ -556,7 +574,7 @@ EOF
             my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
             $rsth->execute();
 
-            my @enum = [];
+            my @enum = ();
             while (my ($id, $name) = $rsth->fetchrow_array()) {
                 push @enum, [$id, $name];
             }
