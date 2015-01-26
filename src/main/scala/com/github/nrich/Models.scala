@@ -8,18 +8,22 @@ import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
 
-class ExampleDb2Object extends KeyedEntity[Long] {
+class ExampleDb2ObjectInt extends KeyedEntity[Int] {
+	val id: Int = 0
+}
+
+class ExampleDb2ObjectLong extends KeyedEntity[Long] {
 	val id: Long = 0
 }
 
-class Invoice ( 
+class Invoice (
 	var amount: BigDecimal,
 	var created: Timestamp,
 	var processed: Option[Timestamp],
 	var state: InvoiceState.InvoiceState,
 	@Column("user_id")
 	var userId: Long
-) extends ExampleDb2Object {
+) extends ExampleDb2ObjectInt {
 	def this() = 
 		this(0.00, new Timestamp(System.currentTimeMillis), None, InvoiceState.from(3), 0)
 	def this(amount: BigDecimal, userId: Long) =
@@ -61,16 +65,16 @@ object InvoiceState extends Enumeration {
 			case "pending" => return Pending
 			case _ => throw new IllegalArgumentException
 		}
-
 }
-class User ( 
+
+class User (
 	var created: Timestamp,
 	@Column("email_address")
 	var emailAddress: String,
 	var password: String,
 	var state: UserState.UserState,
 	var username: String
-) extends ExampleDb2Object {
+) extends ExampleDb2ObjectInt {
 	def this() = 
 		this(new Timestamp(System.currentTimeMillis), "", "", UserState.from(1), "")
 	def this(emailAddress: String, password: String, username: String) =
@@ -114,8 +118,8 @@ object UserState extends Enumeration {
 			case "closed" => return Closed
 			case _ => throw new IllegalArgumentException
 		}
-
 }
+
 object ExampleSchema extends Schema {
 	val invoices = table[Invoice]("example_invoice")
 	on(invoices)(s => declare(
