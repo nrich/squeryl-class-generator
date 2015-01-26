@@ -8,7 +8,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Std qw/getopts/;
 
 my %opts = ();
-getopts('hd:u:p:c:S:H:P:', \%opts);
+getopts('hd:u:p:c:S:H:P:T:', \%opts);
 main(@ARGV);
 
 sub usage {
@@ -20,7 +20,8 @@ Usage: $0
     [-c class package]
     [-H hostname|localhost] 
     [-P port|5432]
-    [-S schema prefix|dbname]
+    [-S schema prefix|dbname] - require for Sqlite
+    [-T database type|Postgres]
 EOF
 
     exit 1;
@@ -29,37 +30,56 @@ EOF
 sub main {
     $opts{h} and usage();
 
-    my $dbname = $opts{d} or usage();
-    my $username = $opts{u} or usage();
-    my $password = $opts{p} or usage();
-    my $package = $opts{c} or usage();
+    my $type = lc ($opts{T} || 'postgres');
 
+    my $dbname = $opts{d} or usage();
+    my $package = $opts{c} or usage();
     my $host = $opts{H} || 'localhost';
     my $port = $opts{P} || '5432';
-    my $schema = $opts{S} || $dbname;
+    my $schema = $opts{S};
 
-    my $dbh = DBI->connect(
-        "DBI:Pg:dbname=$dbname;host=$host;port=$port",
-        $username,
-        $password,
-        {   
+    my $schemaObj = undef;
+    if ($type eq 'postgres') {
+        my $username = $opts{u} or usage();
+        my $password = $opts{p} or usage();
+
+        $schema ||= $dbname;
+
+        my $dbh = DBI->connect(
+            "DBI:Pg:dbname=$dbname;host=$host;port=$port",
+            $username,
+            $password,
+            {
                 AutoCommit => 0,
                 RaiseError => 1
-        }
-    );
+            }
+        );
+        
+        $schemaObj = PostgresSchema->new($dbh);
+    } elsif ($type eq 'sqlite') {
+        $schema or usage();
+
+        my $dbh = DBI->connect(
+            "DBI:SQLite:dbname=$dbname",
+            undef,
+            undef,
+            {
+                AutoCommit => 0,
+                RaiseError => 1
+            }
+        );
+
+        $schemaObj = SqliteSchema->new($dbh);
+    } else {
+        die "Unknown database type `$type'\n";
+    }
 
     # generate table structure
-    my $structure = generate_structure($dbh, $schema);
-
-    for my $table (keys %$structure) {
-        generate_index($dbh, $structure, $table); 
-        generate_fkeys($dbh, $structure, $table); 
-    }
+    my $structure = $schemaObj->generateSchemaData($schema);
 
     #print STDERR Dumper $structure;
     output_file($schema, $structure, $package);
 
-    $dbh->rollback();
 }
 
 sub output_file {
@@ -495,11 +515,13 @@ sub type_lookup {
 
     my $newtype = {
         'character varying' => 'String',
+        'varchar' => 'String',
         'integer' => 'Int',
         'bigint' => 'Long',
         'boolean' => 'Boolean',
         'date' => 'Timestamp',
         'text' => 'String',
+        'timestamp' => 'Timestamp',
         'timestamp with time zone' => 'Timestamp',
         'timestamp without time zone' => 'Timestamp',
         'smallint' => 'Int',
@@ -529,6 +551,7 @@ sub type_default {
 
         return {
             'now()' => 'new Timestamp(System.currentTimeMillis)',
+            'current_timestamp' => 'new Timestamp(System.currentTimeMillis)',
         }->{$defaultval} || $defaultval;
     }
 
@@ -555,8 +578,161 @@ sub type_default {
 }
 
 
-sub generate_structure {
-    my ($dbh, $schema) = @_;
+sub table_to_classname {
+    my ($schema, $table) = @_;
+
+    (my $classname = $table) =~ s/^${schema}_//;
+    $classname =~ s/_lookup$//;
+    $classname = join('', map {ucfirst} split '_', lc $classname);
+
+    return $classname;
+}
+
+sub pluralize {
+    my ($text) = @_;
+
+    $text = $text =~ /s$/ ? "${text}es" : "${text}s";
+
+    $text =~ s/eses$/es/;
+
+    return $text;
+}
+
+sub attribname {
+    my ($column) = @_;
+
+    return 'id' if $column eq 'id';
+
+    my $attribname = lc $column;
+    $attribname =~ s/_id$/Id/g;
+    $attribname = lcfirst join '', map {ucfirst $_} split /[\_\-]/, $attribname;
+
+    return $attribname;
+}
+
+
+package BaseSchema;
+
+sub new {
+    my ($classname, $dbh) = @_;
+
+    return bless {
+        dbh => $dbh,
+    }, $classname;
+}
+
+sub DESTROY {
+    my ($self) = @_;
+
+    $self->{dbh}->rollback();
+}
+
+1;
+
+package SqliteSchema;
+use base 'BaseSchema';
+
+sub generateSchemaData {
+    my ($self, $schema) = @_;
+
+    my $dbh = $self->{dbh};
+
+    my @tables = ();
+
+    my $structure = {};
+
+    my $sth = $dbh->prepare('SELECT name FROM sqlite_master WHERE type=?');
+    $sth->execute('table');
+
+    while (my ($name) = $sth->fetchrow_array()) {
+        push @tables, $name;
+    }
+
+    for my $table (@tables) {
+        my $tableinfo = $dbh->prepare("PRAGMA table_info($table)");
+        $tableinfo->execute();
+
+        while (my (undef, $column, $datatype, $notnullable, $default) = $tableinfo->fetchrow_array()) {
+            my $maxlen = undef;
+
+            if ($datatype =~ /^(.+?)\((.+?)\)$/) {
+                $datatype = $1;
+                $maxlen = $2; 
+            }
+
+
+            if ($table =~ /lookup$/ and $column ne 'id') {
+                my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
+                $rsth->execute();
+
+                my @enum = ();
+                while (my ($id, $name) = $rsth->fetchrow_array()) {
+                    push @enum, [$id, $name];
+                }
+
+                $structure->{$table}->{enum} = \@enum;
+            }
+
+            $default ||= '';
+            $default = $default =~ /^nextval/ ? undef : $default;
+
+            $structure->{$table}->{columns}->{$column} = {
+                type => $datatype,
+                max => $maxlen,
+                nulls => $notnullable ? 'NO' : 'YES',
+                default => $default,
+            };
+
+        }
+
+        my $fkeylist = $dbh->prepare("PRAGMA foreign_key_list($table)");
+        $fkeylist->execute();
+
+        while (my (undef, undef, $ftable, $column, $fcolumn) = $fkeylist->fetchrow_array()) {
+            my $name = "${table}_${column}_fkey";
+
+            $structure->{$table}->{columns}->{$column}->{refers}->{$ftable}->{$fcolumn} = $name;
+            $structure->{$ftable}->{columns}->{$fcolumn}->{referred}->{$table}->{$column} = $name;
+        }
+
+        my $indexlist = $dbh->prepare("PRAGMA index_list($table)");
+        $indexlist->execute();
+
+        while (my (undef, $index) = $indexlist->fetchrow_array()) {
+            my $indexinfo = $dbh->prepare("PRAGMA index_info($index)");
+            $indexinfo->execute();
+
+            while (my (undef, $is_unique, $column) = $indexinfo->fetchrow_array()) {
+                $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $is_unique;
+            }
+        }
+
+    }
+
+    return $structure;
+}
+
+
+package PostgresSchema;
+use base 'BaseSchema';
+
+sub generateSchemaData {
+    my ($self, $schema) = @_;
+
+    my $structure = $self->_generateStructure($schema);
+
+    for my $table (keys %$structure) {
+        $self->_generateIndex($structure, $table); 
+        $self->_generateFkeys($structure, $table); 
+    }
+
+    return $structure;
+}
+
+sub _generateStructure {
+    my ($self, $schema) = @_;
+
+    my $dbh = $self->{dbh};
 
     my $column_query =<<EOF;
 select column_name, data_type,table_name,character_maximum_length,is_nullable,column_default
@@ -598,8 +774,10 @@ EOF
     return $structure;
 }
 
-sub generate_index {
-    my ($dbh, $structure, $tablename) = @_;
+sub _generateIndex {
+    my ($self, $structure, $tablename) = @_;
+
+    my $dbh = $self->{dbh};
 
     my $index_query =<<EOF;
 select
@@ -631,8 +809,10 @@ EOF
     return $structure;
 }
 
-sub generate_fkeys {
-    my ($dbh, $structure, $tablename) = @_;
+sub _generateFkeys {
+    my ($self, $structure, $tablename) = @_;
+
+    my $dbh = $self->{dbh};
 
     my $fkey_query =<<EOF;
 SELECT 
@@ -659,34 +839,6 @@ EOF
     return $structure;
 }
 
-sub table_to_classname {
-    my ($schema, $table) = @_;
 
-    (my $classname = $table) =~ s/^${schema}_//;
-    $classname =~ s/_lookup$//;
-    $classname = join('', map {ucfirst} split '_', lc $classname);
+1;
 
-    return $classname;
-}
-
-sub pluralize {
-    my ($text) = @_;
-
-    $text = $text =~ /s$/ ? "${text}es" : "${text}s";
-
-    $text =~ s/eses$/es/;
-
-    return $text;
-}
-
-sub attribname {
-    my ($column) = @_;
-
-    return 'id' if $column eq 'id';
-
-    my $attribname = lc $column;
-    $attribname =~ s/_id$/Id/g;
-    $attribname = lcfirst join '', map {ucfirst $_} split /[\_\-]/, $attribname;
-
-    return $attribname;
-}
