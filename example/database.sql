@@ -58,3 +58,5 @@ CREATE TABLE example_invoice (
 	FOREIGN KEY(user_id) REFERENCES example_user(id),
 	FOREIGN KEY(state) REFERENCES example_invoice_state_lookup(id)
 );
+
+GRANT ALL ON example_user_id_seq,example_user_state_lookup,example_invoice_state_lookup,example_invoice,example_invoice_id_seq to example;
