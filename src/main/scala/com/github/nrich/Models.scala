@@ -22,11 +22,11 @@ class Invoice (
 	var processed: Option[Timestamp],
 	var state: InvoiceState.InvoiceState,
 	@Column("user_id")
-	var userId: Long
+	var userId: Int
 ) extends ExampleDb2ObjectInt {
 	def this() = 
 		this(0.00, new Timestamp(System.currentTimeMillis), None, InvoiceState.from(3), 0)
-	def this(amount: BigDecimal, userId: Long) =
+	def this(amount: BigDecimal, userId: Int) =
 		this(amount, new Timestamp(System.currentTimeMillis), None, InvoiceState.from(3), userId)
 	def this(amount: BigDecimal, user: User) =
 		this(amount, new Timestamp(System.currentTimeMillis), None, InvoiceState.from(3), user.id)

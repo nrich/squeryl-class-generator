@@ -49,7 +49,7 @@ CREATE UNIQUE INDEX example_user_email_idx ON example_user(email_address);
 CREATE TABLE example_invoice (
 	id serial NOT NULL,
 	amount numeric(10,2) NOT NULL,
-	user_id bigint NOT NULL,
+	user_id integer NOT NULL,
 	state integer NOT NULL DEFAULT 3,
 	created timestamp NOT NULL DEFAULT current_timestamp,
 	processed timestamp,
