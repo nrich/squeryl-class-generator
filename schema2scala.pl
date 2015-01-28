@@ -19,7 +19,7 @@ Usage: $0
     [-p password]
     [-c class package]
     [-H hostname|localhost] 
-    [-P port|5432]
+    [-P port|5432|3306]
     [-S schema prefix|dbname] - require for Sqlite
     [-T database type|Postgres]
 EOF
@@ -35,13 +35,13 @@ sub main {
     my $dbname = $opts{d} or usage();
     my $package = $opts{c} or usage();
     my $host = $opts{H} || 'localhost';
-    my $port = $opts{P} || '5432';
     my $schema = $opts{S};
 
     my $schemaObj = undef;
     if ($type eq 'postgres') {
         my $username = $opts{u} or usage();
         my $password = $opts{p} or usage();
+        my $port = $opts{P} || '5432';
 
         $schema ||= $dbname;
 
@@ -59,6 +59,7 @@ sub main {
     } elsif ($type eq 'mysql') {
         my $username = $opts{u} or usage();
         my $password = $opts{p} or usage();
+        my $port = $opts{P} || '3306';
 
         $schema ||= $dbname;
 
