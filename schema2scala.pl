@@ -56,6 +56,23 @@ sub main {
         );
         
         $schemaObj = PostgresSchema->new($dbh);
+    } elsif ($type eq 'mysql') {
+        my $username = $opts{u} or usage();
+        my $password = $opts{p} or usage();
+
+        $schema ||= $dbname;
+
+        my $dbh = DBI->connect(
+            "DBI:mysql:dbname=$dbname;host=$host;port=$port",
+            $username,
+            $password,
+            {
+                AutoCommit => 0,
+                RaiseError => 1
+            }
+        );
+        
+        $schemaObj = MysqlSchema->new($dbh);
     } elsif ($type eq 'sqlite') {
         $schema or usage();
 
@@ -517,6 +534,7 @@ sub type_lookup {
         'character varying' => 'String',
         'varchar' => 'String',
         'integer' => 'Int',
+        'int' => 'Int',
         'bigint' => 'Long',
         'boolean' => 'Boolean',
         'date' => 'Timestamp',
@@ -526,6 +544,8 @@ sub type_lookup {
         'timestamp without time zone' => 'Timestamp',
         'smallint' => 'Int',
         'numeric' => 'BigDecimal',
+        'double' => 'BigDecimal',
+        'float' => 'BigDecimal',
     }->{$type}||die "Unknown type `$type'\n";
 
     if ($nullable) {
@@ -552,6 +572,7 @@ sub type_default {
         return {
             'now()' => 'new Timestamp(System.currentTimeMillis)',
             'current_timestamp' => 'new Timestamp(System.currentTimeMillis)',
+            'CURRENT_TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
         }->{$defaultval} || $defaultval;
     }
 
@@ -684,7 +705,9 @@ sub generateSchemaData {
             };
 
         }
+    }
 
+    for my $table (@tables) {
         my $fkeylist = $dbh->prepare("PRAGMA foreign_key_list($table)");
         $fkeylist->execute();
 
@@ -712,6 +735,7 @@ sub generateSchemaData {
     return $structure;
 }
 
+1;
 
 package PostgresSchema;
 use base 'BaseSchema';
@@ -839,6 +863,113 @@ EOF
     return $structure;
 }
 
+1;
+
+package MysqlSchema;
+use base 'BaseSchema';
+
+sub generateSchemaData {
+    my ($self, $schema) = @_;
+
+    my $dbh = $self->{dbh};
+
+    my @tables = ();
+
+    my $structure = {};
+
+    my $sth = $dbh->prepare('SHOW TABLES');
+    $sth->execute();
+
+    while (my ($name) = $sth->fetchrow_array()) {
+        push @tables, $name;
+    }
+
+    for my $table (@tables) {
+        my $tableinfo = $dbh->prepare("SHOW COLUMNS FROM $table");
+        $tableinfo->execute();
+
+        while (my ($column, $datatype, $nullable, undef, $default) = $tableinfo->fetchrow_array()) {
+            my $maxlen = undef;
+
+            if ($datatype =~ /^(.+?)\((.+?)\)$/) {
+                $datatype = $1;
+                $maxlen = $2; 
+            }
+
+
+            if ($table =~ /lookup$/ and $column ne 'id') {
+                my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
+                $rsth->execute();
+
+                my @enum = ();
+                while (my ($id, $name) = $rsth->fetchrow_array()) {
+                    push @enum, [$id, $name];
+                }
+
+                $structure->{$table}->{enum} = \@enum;
+            }
+
+            $default ||= '';
+            $default = $default =~ /^nextval/ ? undef : $default;
+
+            $structure->{$table}->{columns}->{$column} = {
+                type => $datatype,
+                max => $maxlen,
+                nulls => $nullable,
+                default => $default,
+            };
+
+        }
+    }
+
+    for my $table (@tables) {
+        my $fkey_query =<<EOF;
+SELECT
+    column_name,referenced_table_name,referenced_column_name
+FROM
+    information_schema.key_column_usage
+WHERE
+    referenced_table_name IS NOT NULL
+    AND table_schema = ?     
+    AND table_name = ?
+EOF
+
+        my $fkeylist = $dbh->prepare($fkey_query);
+        $fkeylist->execute($schema, $table);
+
+        while (my ($column, $ftable, $fcolumn) = $fkeylist->fetchrow_array()) {
+            my $name = "${table}_${column}_fkey";
+
+            $structure->{$table}->{columns}->{$column}->{refers}->{$ftable}->{$fcolumn} = $name;
+            $structure->{$ftable}->{columns}->{$fcolumn}->{referred}->{$table}->{$column} = $name;
+        }
+
+        my $index_query =<<EOF;
+SELECT
+    column_name,index_name,non_unique 
+FROM
+    information_schema.statistics
+WHERE
+    table_schema = ?     
+    AND table_name = ?
+    AND column_name != 'PRIMARY'
+    AND column_name != index_name
+EOF
+
+
+
+        my $indexlist = $dbh->prepare($index_query);
+        $indexlist->execute($schema, $table);
+
+        while (my ($column, $index, $not_unique) = $indexlist->fetchrow_array()) {
+            $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $not_unique ? 0 : 1;
+        }
+
+    }
+
+    print STDERR Data::Dumper::Dumper($structure);
+    return $structure;
+}
 
 1;
 

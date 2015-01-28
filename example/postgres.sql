@@ -31,13 +31,14 @@ INSERT INTO example_invoice_state_lookup(id, state) VALUES(2, 'failed');
 INSERT INTO example_invoice_state_lookup(id, state) VALUES(3, 'pending');
 
 CREATE TABLE example_user (
-	id integer primary key NOT NULL,
+	id serial NOT NULL,
 	username varchar(254) NOT NULL,
 	password varchar(254) NOT NULL,
 	email_address text NOT NULL,
 	created timestamp NOT NULL DEFAULT current_timestamp,
 	state integer NOT NULL DEFAULT 1,
 
+	PRIMARY KEY(id),
 	FOREIGN KEY(state) REFERENCES example_user_state_lookup(id)
 );
 
@@ -46,14 +47,16 @@ CREATE UNIQUE INDEX example_user_username_idx ON example_user(username);
 CREATE UNIQUE INDEX example_user_email_idx ON example_user(email_address);
 
 CREATE TABLE example_invoice (
-	id integer primary key NOT NULL,
+	id serial NOT NULL,
 	amount numeric(10,2) NOT NULL,
 	user_id integer NOT NULL,
 	state integer NOT NULL DEFAULT 3,
 	created timestamp NOT NULL DEFAULT current_timestamp,
 	processed timestamp,
 
+	PRIMARY KEY(id),
 	FOREIGN KEY(user_id) REFERENCES example_user(id),
 	FOREIGN KEY(state) REFERENCES example_invoice_state_lookup(id)
 );
 
+GRANT ALL ON example_user_id_seq,example_user_state_lookup,example_invoice_state_lookup,example_invoice,example_invoice_id_seq to example;
