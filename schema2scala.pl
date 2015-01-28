@@ -327,7 +327,10 @@ EOF
 
                     if ($explicit) {
                         my $otherattrib = attribname($othercol);
-                        $plural = pluralize($otherattrib);
+                        $otherattrib =~ s/Id$//;
+                        $plural = pluralize(attribname("${otherclassname}_${otherattrib}"));
+                    } else {
+                        $plural = attribname($plural);
                     }
 
                     my $is_unique = 0;
@@ -350,7 +353,6 @@ EOF
                         #push @fkeys, "\tlazy val $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
                         push @fkeys, "\tlazy val $optcol: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.left(this).single";
                     } else {
-                        $plural = attribname($plural);
                         push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
                     }
                 }
