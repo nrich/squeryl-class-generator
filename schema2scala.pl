@@ -371,13 +371,18 @@ EOF
                     my $otherattrib = attribname($column);
                     $otherattrib =~ s/Id$//;
 
+                    my $oa = attribname($othercol);
+
                     if ($structure->{$othertable}->{enum}) {
                         
                     } else {
                         if ($nullable) {
                             push @fkeys, "\t\@Transient\n\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t$attribname match {\n\t\t\tcase Some(x) => ${schema_name}Schema.${fkey}.right(this).headOption\n\t\t\tcase None => None\n\t\t}";
+                            push @fkeys, "\tdef $otherattrib(v: Option[$otherclassname]): $classname = {\n\t\t v match {\n\t\t\tcase Some(x) => $attribname = Some(x.$oa)\n\t\t\tcase None => $attribname = None\n\t\t}\n\t\treturn this\n\t}";
+                            push @fkeys, "\tdef $otherattrib(v: $otherclassname): $classname = {\n\t\t$attribname = Some(v.$oa)\n\t\treturn this\n\t}";
                         } else {
                             push @fkeys, "\tlazy val $otherattrib: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.right(this).single";
+                            push @fkeys, "\tdef $otherattrib(v: $otherclassname): $classname = {\n\t\t$attribname = v.$oa\n\t\treturn this\n\t}";
                         }
                     }
                 }
