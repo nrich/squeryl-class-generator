@@ -474,6 +474,15 @@ EOF
                 }
             }
 
+            my $type = $structure->{$table}->{columns}->{$column}->{type}; 
+            my $len = $structure->{$table}->{columns}->{$column}->{length}; 
+
+            if ($len) {
+                push @attribs, "dbType(\"$type($len)\")";
+
+                $structure->{$table}->{columns}->{$column}->{type};
+            }
+
             if (@attribs) {
                 my $attriblist = join(',', @attribs);
 
@@ -682,11 +691,11 @@ sub generateSchemaData {
         $tableinfo->execute();
 
         while (my (undef, $column, $datatype, $notnullable, $default) = $tableinfo->fetchrow_array()) {
-            my $maxlen = undef;
+            my $len = undef;
 
             if ($datatype =~ /^(.+?)\((.+?)\)$/) {
                 $datatype = $1;
-                $maxlen = $2; 
+                $len = $2; 
             }
 
 
@@ -707,7 +716,7 @@ sub generateSchemaData {
 
             $structure->{$table}->{columns}->{$column} = {
                 type => $datatype,
-                max => $maxlen,
+                length => $len,
                 nulls => $notnullable ? 'NO' : 'YES',
                 default => $default,
             };
@@ -740,6 +749,7 @@ sub generateSchemaData {
 
     }
 
+    print STDERR Data::Dumper::Dumper($structure);
     return $structure;
 }
 
@@ -767,7 +777,7 @@ sub _generateStructure {
     my $dbh = $self->{dbh};
 
     my $column_query =<<EOF;
-select column_name, data_type,table_name,character_maximum_length,is_nullable,column_default
+select column_name, data_type,table_name,character_maximum_length,is_nullable,column_default,numeric_precision_radix,numeric_scale
 from information_schema.columns 
 where (table_name like '${schema}_%' or table_name = 'auth_user')
 EOF
@@ -776,7 +786,7 @@ EOF
     $sth->execute();
 
     my $structure = {};
-    while (my ($column, $datatype, $table, $maxlen, $nullable, $default) = $sth->fetchrow_array()) {
+    while (my ($column, $datatype, $table, $len, $nullable, $default, $numeric_precision_radix, $numeric_scale) = $sth->fetchrow_array()) {
 
         if ($table =~ /lookup$/ and $column ne 'id') {
             my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
@@ -793,9 +803,13 @@ EOF
         $default ||= '';
         $default = $default =~ /^nextval/ ? undef : $default;
 
+        if ($numeric_scale) {
+            $len = "$numeric_precision_radix,$numeric_scale";
+        }
+
         $structure->{$table}->{columns}->{$column} = {
             type => $datatype,
-            max => $maxlen,
+            length => $len,
             nulls => $nullable,
             default => $default,
         };
@@ -848,7 +862,7 @@ sub _generateFkeys {
 
     my $fkey_query =<<EOF;
 SELECT 
-    tc.constraint_name, tc.table_name, kcu.column_name, 
+    tc.table_name, kcu.column_name, 
     ccu.table_name AS foreign_table_name,
     ccu.column_name AS foreign_column_name 
 FROM 
@@ -863,11 +877,13 @@ EOF
     my $sth = $dbh->prepare($fkey_query);
     $sth->execute($tablename);
 
-    while (my ($name, $table, $column, $ftable, $fcolumn) = $sth->fetchrow_array()) {
+    while (my ($table, $column, $ftable, $fcolumn) = $sth->fetchrow_array()) {
+        my $name = "${table}_${column}_fkey";
         $structure->{$table}->{columns}->{$column}->{refers}->{$ftable}->{$fcolumn} = $name;
         $structure->{$ftable}->{columns}->{$fcolumn}->{referred}->{$table}->{$column} = $name;
     }
 
+    print STDERR Data::Dumper::Dumper($structure);
     return $structure;
 }
 
@@ -897,11 +913,11 @@ sub generateSchemaData {
         $tableinfo->execute();
 
         while (my ($column, $datatype, $nullable, undef, $default) = $tableinfo->fetchrow_array()) {
-            my $maxlen = undef;
+            my $len = undef;
 
             if ($datatype =~ /^(.+?)\((.+?)\)$/) {
                 $datatype = $1;
-                $maxlen = $2; 
+                $len = $2; 
             }
 
 
@@ -922,7 +938,7 @@ sub generateSchemaData {
 
             $structure->{$table}->{columns}->{$column} = {
                 type => $datatype,
-                max => $maxlen,
+                length => $len,
                 nulls => $nullable,
                 default => $default,
             };
