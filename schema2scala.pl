@@ -179,7 +179,8 @@ $strings_list
 }
 
 EOF
-            next;
+#            next;
+            $classname .= "Lookup";
         }
 
 
@@ -225,6 +226,8 @@ EOF
                         $attribname = $paramname;
                         $col_default = "$othertype.from($default)";
 
+                        $structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
+
                         push @build_default_full, "$attribname";
                         push @default_full, "$attribname: $type"; 
                     } else {
@@ -264,6 +267,8 @@ EOF
 
                         my $defval = $structure->{$othertable}->{enum}->[0]->[0];
                         $col_default = "$othertype.from($defval)";
+
+                        $structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
 
                         push @no_default, "${paramname}: ${type}";
                         push @build_default, $attribname;
@@ -389,6 +394,10 @@ EOF
             } 
         } 
 
+        if ($structure->{$table}->{enum}) {
+            @fkeys = ();
+        }
+
         my $default_list = "\t//No default constructor";
         if (@defaults) {
             $default_list = join(', ', @defaults);
@@ -436,12 +445,13 @@ object ${schema_name}Schema extends Schema {
 EOF
 
     for my $table (sort keys %$structure) {
-        next if $structure->{$table}->{enum};
+#        next if $structure->{$table}->{enum};
 
         (my $varname = $table) =~ s/${schema}_//;
         $varname = lc $varname;
 
         my $classname = table_to_classname($schema, $table);
+        $classname .= "Lookup" if $structure->{$table}->{enum};
         $varname = pluralize($varname);
         
         print <<EOF;
@@ -481,6 +491,18 @@ EOF
                 push @attribs, "dbType(\"$type($len)\")";
 
                 $structure->{$table}->{columns}->{$column}->{type};
+            } elsif ($type eq 'text') {
+                push @attribs, "dbType(\"text\")";
+            }
+
+            if (my $default = $structure->{$table}->{columns}->{$column}->{defaultval}) {
+                my $attribname = attribname($column);
+                push @declarations, "\t\ts.$attribname\t\tdefaultsTo($default)";
+            } elsif (my $default = $structure->{$table}->{columns}->{$column}->{default}) {
+                $default = type_default(type_lookup($structure->{$table}->{columns}->{$column}->{type}), 0, $default);
+
+                my $attribname = attribname($column);
+                push @declarations, "\t\ts.$attribname\t\tdefaultsTo($default)";
             }
 
             if (@attribs) {
@@ -490,6 +512,7 @@ EOF
                 
                 push @declarations, "\t\ts.$attribname\t\tis($attriblist)";
             }
+
         }
 
         if (@declarations) {
@@ -574,6 +597,8 @@ sub type_lookup {
 
 sub type_default {
     my ($type, $nullable, $defaultval) = @_;
+
+    return undef unless $type;
 
     if ($defaultval) {
         if ($type eq 'String') {
