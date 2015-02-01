@@ -937,7 +937,10 @@ sub generateSchemaData {
         while (my ($column, $datatype, $nullable, undef, $default) = $tableinfo->fetchrow_array()) {
             my $len = undef;
 
-            if ($datatype =~ /^(.+?)\((.+?)\)$/) {
+
+            if ($datatype eq 'int(11)') {
+                $datatype = 'integer';
+            } elsif ($datatype =~ /^(.+?)\((.+?)\)$/) {
                 $datatype = $1;
                 $len = $2; 
             }
