@@ -65,4 +65,4 @@ CREATE TABLE example_payment (
 
 CREATE UNIQUE INDEX example_payment_user_id_idx ON example_payment(invoice_id);
 
-GRANT ALL ON example_payment,example_payment_iq_seq,example_user_id_seq,example_user_state_lookup,example_invoice_state_lookup,example_invoice,example_
+GRANT ALL ON example_payment,example_payment_id_seq,example_user,example_user_id_seq,example_user_state_lookup,example_invoice_state_lookup,example_invoice,example_invoice_id_seq TO example;

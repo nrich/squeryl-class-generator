@@ -191,26 +191,23 @@ object ExampleSchema extends Schema {
 	val invoices = table[Invoice]("example_invoice")
 	on(invoices)(s => declare(
 		s.id			is(autoIncremented("example_invoice_id_seq")),
-		s.amount		is(dbType("double(10,2)")),
+		s.amount		is(dbType("numeric(10,2)")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
-		s.payerId		is(dbType("int(11)")),
-		s.state		defaultsTo(InvoiceState.from(3)),
-		s.state		is(dbType("int(11)")),
-		s.userId		is(dbType("int(11)"))
+		s.state		defaultsTo(InvoiceState.from(3))
 	))
 
 	val invoice_state_lookups = table[InvoiceStateLookup]("example_invoice_state_lookup")
 	on(invoice_state_lookups)(s => declare(
 		s.id			is(autoIncremented("example_invoice_state_lookup_id_seq")),
-		s.state		is(unique,dbType("varchar(32)"))
+		s.state		is(unique,dbType("character varying(32)"))
 	))
 
 	val payments = table[Payment]("example_payment")
 	on(payments)(s => declare(
 		s.id			is(autoIncremented("example_payment_id_seq")),
-		s.amount		is(dbType("double(10,2)")),
+		s.amount		is(dbType("numeric(10,2)")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
-		s.invoiceId		is(unique,dbType("int(11)"))
+		s.invoiceId		is(unique)
 	))
 
 	val users = table[User]("example_user")
@@ -218,16 +215,15 @@ object ExampleSchema extends Schema {
 		s.id			is(autoIncremented("example_user_id_seq")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.emailAddress		is(dbType("text")),
-		s.password		is(dbType("varchar(254)")),
+		s.password		is(dbType("character varying(254)")),
 		s.state		defaultsTo(UserState.from(1)),
-		s.state		is(dbType("int(11)")),
-		s.username		is(unique,dbType("varchar(254)"))
+		s.username		is(unique,dbType("character varying(254)"))
 	))
 
 	val user_state_lookups = table[UserStateLookup]("example_user_state_lookup")
 	on(user_state_lookups)(s => declare(
 		s.id			is(autoIncremented("example_user_state_lookup_id_seq")),
-		s.name		is(unique,dbType("varchar(32)"))
+		s.name		is(unique,dbType("character varying(32)"))
 	))
 
 	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
