@@ -333,7 +333,7 @@ EOF
                     if ($explicit) {
                         my $otherattrib = attribname($othercol);
                         $otherattrib =~ s/Id$//;
-                        $plural = pluralize(attribname("${otherclassname}_${otherattrib}"));
+                        $plural = pluralize(attribname("${otherattrib}_${otherclassname}"));
                     } else {
                         $plural = attribname($plural);
                     }
@@ -490,8 +490,6 @@ EOF
 
             if ($len) {
                 push @attribs, "dbType(\"$type($len)\")";
-
-                $structure->{$table}->{columns}->{$column}->{type};
             } elsif ($type eq 'text') {
                 push @attribs, "dbType(\"text\")";
             }
@@ -499,7 +497,7 @@ EOF
             if (my $default = $structure->{$table}->{columns}->{$column}->{defaultval}) {
                 my $attribname = attribname($column);
                 push @declarations, "\t\ts.$attribname\t\tdefaultsTo($default)";
-            } elsif (my $default = $structure->{$table}->{columns}->{$column}->{default}) {
+            } elsif ($default = $structure->{$table}->{columns}->{$column}->{default}) {
                 $default = type_default(type_lookup($structure->{$table}->{columns}->{$column}->{type}), 0, $default);
 
                 my $attribname = attribname($column);
@@ -775,7 +773,6 @@ sub generateSchemaData {
 
     }
 
-    print STDERR Data::Dumper::Dumper($structure);
     return $structure;
 }
 
@@ -909,7 +906,6 @@ EOF
         $structure->{$ftable}->{columns}->{$fcolumn}->{referred}->{$table}->{$column} = $name;
     }
 
-    print STDERR Data::Dumper::Dumper($structure);
     return $structure;
 }
 
@@ -1017,7 +1013,6 @@ EOF
 
     }
 
-    print STDERR Data::Dumper::Dumper($structure);
     return $structure;
 }
 

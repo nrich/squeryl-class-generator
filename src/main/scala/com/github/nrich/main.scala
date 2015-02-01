@@ -39,13 +39,23 @@ object SchemaExample {
                 }
 
 		transaction {
-			import ExampleSchema._
+                        import ExampleSchema._
+                        val user = users.insert(new User("test@test.com", "abc123", "test"))
+                        user.state = UserState.Active
+                        users.update(user)
 
-			val user = users.insert(new User("test@test.com", "abc123", "test"))
-			user.state = UserState.Active
-			users.update(user)
+                        val invoice = invoices.insert(new Invoice(10.00, user))
+                        println(invoice.payment)
+                        val payment = payments.insert(new Payment(10.00, invoice))
+                        println(invoice.payment)
 
-			val invoice = invoices.insert(new Invoice(10.00, user))
+                        val payment2 = from(payments)(p =>
+                        where(p.id === 1)
+                        select(p)).single
+
+                        println(payment.invoice)
+
+                        printDdl(println(_))
 		}
 	}
 }
