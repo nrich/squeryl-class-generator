@@ -232,7 +232,7 @@ EOF
                         push @default_full, "$attribname: $type"; 
                     } else {
                         if ($nullable) {
-                            push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib) }";
+                            push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib)}";
                             push @default_full, "${paramname}: Option[${othertype}]"; 
                         } else {
                             $has_full_obj = 1;
@@ -355,8 +355,8 @@ EOF
                             $optcol = attribname($optcol);
                         }
 
-                        #push @fkeys, "\tlazy val $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
-                        push @fkeys, "\tlazy val $optcol: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.left(this).single";
+                        #push @fkeys, "\tlazy val $optcol: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.left(this).single";
+                        push @fkeys, "\tdef $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
                     } else {
                         push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
                     }
@@ -382,7 +382,8 @@ EOF
                         
                     } else {
                         if ($nullable) {
-                            push @fkeys, "\t\@Transient\n\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t$attribname match {\n\t\t\tcase Some(x) => ${schema_name}Schema.${fkey}.right(this).headOption\n\t\t\tcase None => None\n\t\t}";
+                            #push @fkeys, "\t\@Transient\n\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t$attribname match {\n\t\t\tcase Some(x) => ${schema_name}Schema.${fkey}.right(this).headOption\n\t\t\tcase None => None\n\t\t}";
+                            push @fkeys, "\tdef $otherattrib: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.right(this).headOption";
                             push @fkeys, "\tdef $otherattrib(v: Option[$otherclassname]): $classname = {\n\t\t v match {\n\t\t\tcase Some(x) => $attribname = Some(x.$oa)\n\t\t\tcase None => $attribname = None\n\t\t}\n\t\treturn this\n\t}";
                             push @fkeys, "\tdef $otherattrib(v: $otherclassname): $classname = {\n\t\t$attribname = Some(v.$oa)\n\t\treturn this\n\t}";
                         } else {
