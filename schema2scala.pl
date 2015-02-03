@@ -346,13 +346,12 @@ EOF
                         next unless $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$index};
 
                         $is_unique = 1;
-                        for my $col (grep {$_ ne $column} keys %{$structure->{$othertable}->{columns}}) {
-                            if (exists $structure->{$othertable}->{columns}->{$col}->{indexes}->{$index}) {
+                        for my $col (grep {$_ ne $othercol} keys %{$structure->{$othertable}->{columns}}) {
+                            if ($structure->{$othertable}->{columns}->{$col}->{indexes}->{$index}) {
                                 $is_unique = 0;
                             }
                         }
                     }
-
 
                     if ($is_unique) {
                         my $optcol = attribname($othercol);
@@ -770,11 +769,11 @@ sub generateSchemaData {
         my $indexlist = $dbh->prepare("PRAGMA index_list($table)");
         $indexlist->execute();
 
-        while (my (undef, $index) = $indexlist->fetchrow_array()) {
+        while (my (undef, $index, $is_unique) = $indexlist->fetchrow_array()) {
             my $indexinfo = $dbh->prepare("PRAGMA index_info($index)");
             $indexinfo->execute();
 
-            while (my (undef, $is_unique, $column) = $indexinfo->fetchrow_array()) {
+            while (my (undef, undef, $column) = $indexinfo->fetchrow_array()) {
                 $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $is_unique;
             }
         }
