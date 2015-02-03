@@ -342,9 +342,17 @@ EOF
 
                     my @indexes = keys %{$structure->{$othertable}->{columns}->{$othercol}->{indexes}||{}};
 
-                    if (scalar @indexes == 1 and $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$indexes[0]}) {
+                    for my $index (@indexes) {
+                        next unless $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$index};
+
                         $is_unique = 1;
+                        for my $col (grep {$_ ne $column} keys %{$structure->{$othertable}->{columns}}) {
+                            if (exists $structure->{$othertable}->{columns}->{$col}->{indexes}->{$index}) {
+                                $is_unique = 0;
+                            }
+                        }
                     }
+
 
                     if ($is_unique) {
                         my $optcol = attribname($othercol);
