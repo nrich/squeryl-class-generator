@@ -342,8 +342,15 @@ EOF
 
                     my @indexes = keys %{$structure->{$othertable}->{columns}->{$othercol}->{indexes}||{}};
 
-                    if (scalar @indexes == 1 and $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$indexes[0]}) {
+                    for my $index (@indexes) {
+                        next unless $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$index};
+
                         $is_unique = 1;
+                        for my $col (grep {$_ ne $othercol} keys %{$structure->{$othertable}->{columns}}) {
+                            if ($structure->{$othertable}->{columns}->{$col}->{indexes}->{$index}) {
+                                $is_unique = 0;
+                            }
+                        }
                     }
 
                     if ($is_unique) {
@@ -762,11 +769,11 @@ sub generateSchemaData {
         my $indexlist = $dbh->prepare("PRAGMA index_list($table)");
         $indexlist->execute();
 
-        while (my (undef, $index) = $indexlist->fetchrow_array()) {
+        while (my (undef, $index, $is_unique) = $indexlist->fetchrow_array()) {
             my $indexinfo = $dbh->prepare("PRAGMA index_info($index)");
             $indexinfo->execute();
 
-            while (my (undef, $is_unique, $column) = $indexinfo->fetchrow_array()) {
+            while (my (undef, undef, $column) = $indexinfo->fetchrow_array()) {
                 $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $is_unique;
             }
         }
@@ -937,7 +944,10 @@ sub generateSchemaData {
         while (my ($column, $datatype, $nullable, undef, $default) = $tableinfo->fetchrow_array()) {
             my $len = undef;
 
-            if ($datatype =~ /^(.+?)\((.+?)\)$/) {
+
+            if ($datatype eq 'int(11)') {
+                $datatype = 'integer';
+            } elsif ($datatype =~ /^(.+?)\((.+?)\)$/) {
                 $datatype = $1;
                 $len = $2; 
             }
