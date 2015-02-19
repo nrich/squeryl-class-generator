@@ -42,7 +42,7 @@ CREATE UNIQUE INDEX example_user_username_idx ON example_user(username);
 
 CREATE TABLE example_invoice (
 	id integer PRIMARY KEY NOT NULL AUTO_INCREMENT,
-        amount double(10,2) NOT NULL,
+        amount decimal(10,2) NOT NULL,
 	user_id integer NOT NULL,
 	payer_id integer NULL,
 	state integer NOT NULL DEFAULT 3,
@@ -56,7 +56,7 @@ CREATE TABLE example_invoice (
 
 CREATE TABLE example_payment (
         id integer PRIMARY KEY NOT NULL AUTO_INCREMENT,
-        amount double(10,2) NOT NULL,
+        amount decimal(10,2) NOT NULL,
 	invoice_id integer NOT NULL,
         created timestamp NOT NULL DEFAULT current_timestamp,
 

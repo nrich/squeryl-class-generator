@@ -590,8 +590,11 @@ sub type_lookup {
         'timestamp without time zone' => 'Timestamp',
         'smallint' => 'Int',
         'numeric' => 'BigDecimal',
-        'double' => 'BigDecimal',
-        'float' => 'BigDecimal',
+        'decimal' => 'BigDecimal',
+        'double' => 'double',
+        'double precision' => 'double',
+        'float' => 'float',
+        'real' => 'float',
     }->{$type}||die "Unknown type `$type'\n";
 
     if ($nullable) {
@@ -634,11 +637,13 @@ sub type_default {
     my $default = {
         'String' => '""',
         'Int' => '0',
-        'Long' => '0',
+        'Long' => '0L',
         'Boolean' => 'false',
         'Timestamp' => 'new Timestamp(0L)',
         'Short' => '0',
         'BigDecimal' => '0.00',
+        'double' => '0.0',
+        'float' => '0.0',
     }->{$type};
 
     die "Unknown type `$type'\n" unless defined $default;
