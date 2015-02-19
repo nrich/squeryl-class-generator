@@ -111,7 +111,7 @@ package $package
 import org.squeryl.PrimitiveTypeMode._
 import org.squeryl.Schema
 import org.squeryl.annotations.{Column, Transient}
-import java.util.Date
+import java.sql.Date
 import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
@@ -583,7 +583,7 @@ sub type_lookup {
         'int' => 'Int',
         'bigint' => 'Long',
         'boolean' => 'Boolean',
-        'date' => 'Timestamp',
+        'date' => 'Date',
         'text' => 'String',
         'timestamp' => 'Timestamp',
         'timestamp with time zone' => 'Timestamp',
@@ -615,6 +615,10 @@ sub type_default {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Timestamp.valueOf(\"$1\")";
             }
+        } elsif ($type eq 'Date') {
+            if ($defaultval =~ /^'(.+?)'\:\:date/) {
+                return "Date.valueOf(\"$1\")";
+            }
         }
 
         return {
@@ -637,6 +641,7 @@ sub type_default {
         'Long' => '0',
         'Boolean' => 'false',
         'Timestamp' => 'new Timestamp(0L)',
+        'Date' => 'new Date(0L)',
         'Short' => '0',
         'BigDecimal' => '0.00',
     }->{$type};
@@ -671,6 +676,9 @@ sub attribname {
     my ($column) = @_;
 
     return 'id' if $column eq 'id';
+
+    # `type' is a reserved word in Scala
+    return 'typeval' if $column eq 'type';
 
     my $attribname = lc $column;
     $attribname =~ s/_id$/Id/g;
