@@ -3,7 +3,7 @@ package com.github.nrich
 import org.squeryl.PrimitiveTypeMode._
 import org.squeryl.Schema
 import org.squeryl.annotations.{Column, Transient}
-import java.util.Date
+import java.sql.Date
 import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
@@ -103,22 +103,66 @@ class Payment (
 	var amount: BigDecimal,
 	var created: Timestamp,
 	@Column("invoice_id")
-	var invoiceId: Int
+	var invoiceId: Int,
+	@Column("type_id")
+	var typeval: PaymentType.PaymentType
 ) extends ExampleDb2ObjectInt {
 	def this() = 
-		this(0.00, new Timestamp(System.currentTimeMillis), 0)
-	def this(amount: BigDecimal, invoiceId: Int) =
-		this(amount, new Timestamp(System.currentTimeMillis), invoiceId)
-	def this(amount: BigDecimal, invoice: Invoice) =
-		this(amount, new Timestamp(System.currentTimeMillis), invoice.id)
-	def this(amount: BigDecimal, created: Timestamp, invoice: Invoice) =
-		this(amount, created, invoice.id)
+		this(0.00, new Timestamp(System.currentTimeMillis), 0, PaymentType.from(1))
+	def this(amount: BigDecimal, invoiceId: Int, typeval: PaymentType.PaymentType) =
+		this(amount, new Timestamp(System.currentTimeMillis), invoiceId, typeval)
+	def this(amount: BigDecimal, invoice: Invoice, typeval: PaymentType.PaymentType) =
+		this(amount, new Timestamp(System.currentTimeMillis), invoice.id, typeval)
+	def this(amount: BigDecimal, created: Timestamp, invoice: Invoice, typeval: PaymentType.PaymentType) =
+		this(amount, created, invoice.id, typeval)
 	lazy val invoice: Invoice =
 		ExampleSchema.example_payment_invoice_id_fkey.right(this).single
 	def invoice(v: Invoice): Payment = {
 		invoiceId = v.id
 		return this
 	}
+}
+
+object PaymentType extends Enumeration {
+	type PaymentType = Value
+	val CreditCard = Value(1, "credit card")
+	val DirectDebit = Value(2, "direct debit")
+	val Cash = Value(3, "cash")
+
+	def asString(v: PaymentType): String =
+		v match {
+			case CreditCard => return "credit card"
+			case DirectDebit => return "direct debit"
+			case Cash => return "cash"
+			case _ => throw new IllegalArgumentException
+		}
+
+	def from(v: Int): PaymentType =
+		v match {
+			case 1 => return CreditCard
+			case 2 => return DirectDebit
+			case 3 => return Cash
+			case _ => throw new IllegalArgumentException
+		}
+
+	def from(v :String): PaymentType =
+		v match {
+			case "credit card" => return CreditCard
+			case "direct debit" => return DirectDebit
+			case "cash" => return Cash
+			case _ => throw new IllegalArgumentException
+		}
+}
+
+class PaymentTypeLookup (
+	var name: String
+) extends ExampleDb2ObjectInt {
+	def this() = 
+		this("")
+	//No simple constructor
+	//No simple object constructor
+	//No full object constructor
+
 }
 
 class User (
@@ -130,9 +174,9 @@ class User (
 	var username: String
 ) extends ExampleDb2ObjectInt {
 	def this() = 
-		this(new Timestamp(System.currentTimeMillis), "", "", UserState.from(1), "")
+		this(new Timestamp(System.currentTimeMillis), "", "", UserState.from(0), "")
 	def this(emailAddress: String, password: String, username: String) =
-		this(new Timestamp(System.currentTimeMillis), emailAddress, password, UserState.from(1), username)
+		this(new Timestamp(System.currentTimeMillis), emailAddress, password, UserState.from(0), username)
 	//No simple object constructor
 	//No full object constructor
 	lazy val payerInvoices: OneToMany[Invoice] =
@@ -143,10 +187,10 @@ class User (
 
 object UserState extends Enumeration {
 	type UserState = Value
-	val Pending = Value(1, "pending")
-	val Active = Value(2, "active")
-	val Suspended = Value(3, "suspended")
-	val Closed = Value(4, "closed")
+	val Pending = Value(0, "pending")
+	val Active = Value(1, "active")
+	val Suspended = Value(2, "suspended")
+	val Closed = Value(3, "closed")
 
 	def asString(v: UserState): String =
 		v match {
@@ -159,10 +203,10 @@ object UserState extends Enumeration {
 
 	def from(v: Int): UserState =
 		v match {
-			case 1 => return Pending
-			case 2 => return Active
-			case 3 => return Suspended
-			case 4 => return Closed
+			case 0 => return Pending
+			case 1 => return Active
+			case 2 => return Suspended
+			case 3 => return Closed
 			case _ => throw new IllegalArgumentException
 		}
 
@@ -199,7 +243,7 @@ object ExampleSchema extends Schema {
 	val invoice_state_lookups = table[InvoiceStateLookup]("example_invoice_state_lookup")
 	on(invoice_state_lookups)(s => declare(
 		s.id			is(autoIncremented("example_invoice_state_lookup_id_seq")),
-		s.state		is(unique,dbType("character varying(32)"))
+		s.state		is(unique,dbType("varchar(32)"))
 	))
 
 	val payments = table[Payment]("example_payment")
@@ -210,24 +254,30 @@ object ExampleSchema extends Schema {
 		s.invoiceId		is(unique)
 	))
 
+	val payment_type_lookups = table[PaymentTypeLookup]("example_payment_type_lookup")
+	on(payment_type_lookups)(s => declare(
+		s.id			is(autoIncremented("example_payment_type_lookup_id_seq")),
+		s.name		is(unique,dbType("varchar(32)"))
+	))
+
 	val users = table[User]("example_user")
 	on(users)(s => declare(
 		s.id			is(autoIncremented("example_user_id_seq")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.emailAddress		is(dbType("text")),
-		s.password		is(dbType("character varying(254)")),
-		s.state		defaultsTo(UserState.from(1)),
-		s.username		is(unique,dbType("character varying(254)"))
+		s.password		is(dbType("varchar(254)")),
+		s.state		defaultsTo(UserState.from(0)),
+		s.username		is(unique,dbType("varchar(254)"))
 	))
 
 	val user_state_lookups = table[UserStateLookup]("example_user_state_lookup")
 	on(user_state_lookups)(s => declare(
 		s.id			is(autoIncremented("example_user_state_lookup_id_seq")),
-		s.name		is(unique,dbType("character varying(32)"))
+		s.name		is(unique,dbType("varchar(32)"))
 	))
 
-	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
-	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
 	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
+	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
+	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
 }
 

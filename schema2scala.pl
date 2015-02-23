@@ -213,13 +213,15 @@ EOF
 
             my $refers = $structure->{$table}->{columns}->{$column}->{refers};
 
-            if ($default||$nullable) {
+            if (defined $default||$nullable) {
                 if ($refers and %$refers and scalar keys %$refers == 1) {
                     my $othertable = (keys %$refers)[0];
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
                     my $othertype = table_to_classname($schema, $othertable);
 
                     (my $paramname = $attribname) =~ s/Id$//;
+
+                    $paramname = reserved_name($paramname) || $paramname;
 
                     if ($structure->{$othertable}->{enum}) {
                         $type = "$othertype.$othertype";
@@ -261,6 +263,8 @@ EOF
 
                     (my $paramname = $attribname) =~ s/Id$//;
 
+                    $paramname = reserved_name($paramname) || $paramname;
+
                     if ($structure->{$othertable}->{enum}) {
                         $type = "$othertype.$othertype";
                         $attribname = $paramname;
@@ -268,7 +272,7 @@ EOF
                         my $defval = $structure->{$othertable}->{enum}->[0]->[0];
                         $col_default = "$othertype.from($defval)";
 
-                        $structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
+                        #$structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
 
                         push @no_default, "${paramname}: ${type}";
                         push @build_default, $attribname;
@@ -503,6 +507,9 @@ EOF
 
             if (my $default = $structure->{$table}->{columns}->{$column}->{defaultval}) {
                 my $attribname = attribname($column);
+                $attribname =~ s/Id$//;
+                $attribname = reserved_name($attribname) || $attribname;
+
                 push @declarations, "\t\ts.$attribname\t\tdefaultsTo($default)";
             } elsif ($default = $structure->{$table}->{columns}->{$column}->{default}) {
                 $default = type_default(type_lookup($structure->{$table}->{columns}->{$column}->{type}), 0, $default);
@@ -677,17 +684,28 @@ sub pluralize {
     return $text;
 }
 
+sub reserved_name {
+    my ($name) = @_;
+
+    return {
+        type => 'typeval',
+        private => 'privateval',
+        package => 'packageval',
+    }->{lc $name};
+}
+
 sub attribname {
     my ($column) = @_;
 
     return 'id' if $column eq 'id';
 
-    # `type' is a reserved word in Scala
-    return 'typeval' if $column eq 'type';
+    # reserved word check
+    my $reservedmangle = reserved_name($column);
+    return $reservedmangle if $reservedmangle;
 
     my $attribname = lc $column;
     $attribname =~ s/_id$/Id/g;
-    $attribname = lcfirst join '', map {ucfirst $_} split /[\_\-]/, $attribname;
+    $attribname = lcfirst join '', map {ucfirst $_} split /[\_\-\s]/, $attribname;
 
     return $attribname;
 }
@@ -755,8 +773,8 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
-            $default ||= '';
-            $default = $default =~ /^nextval/ ? undef : $default;
+            #$default ||= '';
+            $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
             $structure->{$table}->{columns}->{$column} = {
                 type => $datatype,
@@ -978,8 +996,7 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
-            $default ||= '';
-            $default = $default =~ /^nextval/ ? undef : $default;
+            $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
             $structure->{$table}->{columns}->{$column} = {
                 type => $datatype,

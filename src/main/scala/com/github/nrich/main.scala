@@ -7,7 +7,7 @@ import org.squeryl.PrimitiveTypeMode._
 
 object SchemaExample {
 	def main(args: Array[String]) {
-                var dbtype = "mysql";
+                var dbtype = "sqlite";
 
                 if (args.length > 0) {
                     dbtype = args(0);
@@ -46,14 +46,14 @@ object SchemaExample {
 
                         val invoice = invoices.insert(new Invoice(10.00, user))
                         println(invoice.payment)
-                        val payment = payments.insert(new Payment(10.00, invoice))
+                        val payment = payments.insert(new Payment(10.00, invoice, PaymentType.Cash))
                         println(invoice.payment)
 
                         val payment2 = from(payments)(p =>
                         where(p.id === 1)
                         select(p)).single
 
-                        println(payment.invoice)
+                        println(payment2.invoice)
 
                         printDdl(println(_))
 		}
