@@ -861,8 +861,7 @@ EOF
             $structure->{$table}->{enum} = \@enum;
         }
 
-        $default ||= '';
-        $default = $default =~ /^nextval/ ? undef : $default;
+        $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
         if ($numeric_scale) {
             $len = "$numeric_precision_radix,$numeric_scale";
