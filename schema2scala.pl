@@ -139,13 +139,15 @@ EOF
 
             for my $val (@{$structure->{$table}->{enum}}) {
                 my ($id, $name) = @$val;
+
+                my $lcname = lc $name;
                 
                 my $attrib = ucfirst attribname($name);
 
                 push @values, "\tval $attrib = Value($id, \"$name\")";
                 push @prints, "\t\t\tcase $attrib => return \"$name\"";
                 push @ints, "\t\t\tcase $id => return $attrib";
-                push @strings, "\t\t\tcase \"$name\" => return $attrib";
+                push @strings, "\t\t\tcase \"$lcname\" => return $attrib";
             } 
 
             push @prints, "\t\t\tcase _ => throw new IllegalArgumentException";
@@ -172,8 +174,8 @@ $prints_list
 $ints_list
 \t\t}
 
-\tdef from(v :String): $classname =
-\t\tv match {
+\tdef from(v: String): $classname =
+\t\tv.toLowerCase match {
 $strings_list
 \t\t}
 }

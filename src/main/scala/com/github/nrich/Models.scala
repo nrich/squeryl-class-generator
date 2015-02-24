@@ -79,8 +79,8 @@ object InvoiceState extends Enumeration {
 			case _ => throw new IllegalArgumentException
 		}
 
-	def from(v :String): InvoiceState =
-		v match {
+	def from(v: String): InvoiceState =
+		v.toLowerCase match {
 			case "paid" => return Paid
 			case "failed" => return Failed
 			case "pending" => return Pending
@@ -145,8 +145,8 @@ object PaymentType extends Enumeration {
 			case _ => throw new IllegalArgumentException
 		}
 
-	def from(v :String): PaymentType =
-		v match {
+	def from(v: String): PaymentType =
+		v.toLowerCase match {
 			case "credit card" => return CreditCard
 			case "direct debit" => return DirectDebit
 			case "cash" => return Cash
@@ -179,10 +179,10 @@ class User (
 		this(new Timestamp(System.currentTimeMillis), emailAddress, password, UserState.from(0), username)
 	//No simple object constructor
 	//No full object constructor
-	lazy val payerInvoices: OneToMany[Invoice] =
-		ExampleSchema.example_invoice_payer_id_fkey.left(this)
 	lazy val userInvoices: OneToMany[Invoice] =
 		ExampleSchema.example_invoice_user_id_fkey.left(this)
+	lazy val payerInvoices: OneToMany[Invoice] =
+		ExampleSchema.example_invoice_payer_id_fkey.left(this)
 }
 
 object UserState extends Enumeration {
@@ -210,8 +210,8 @@ object UserState extends Enumeration {
 			case _ => throw new IllegalArgumentException
 		}
 
-	def from(v :String): UserState =
-		v match {
+	def from(v: String): UserState =
+		v.toLowerCase match {
 			case "pending" => return Pending
 			case "active" => return Active
 			case "suspended" => return Suspended
@@ -276,8 +276,8 @@ object ExampleSchema extends Schema {
 		s.name		is(unique,dbType("varchar(32)"))
 	))
 
-	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
-	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
 	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
+	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
+	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
 }
 
