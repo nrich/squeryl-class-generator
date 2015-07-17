@@ -631,6 +631,8 @@ sub type_default {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Date.valueOf(\"$1\")";
             }
+        } elsif ($type eq 'BigDecimal') {
+	    return "BigDecimal($defaultval)";
         }
 
         return {
@@ -655,7 +657,7 @@ sub type_default {
         'Timestamp' => 'new Timestamp(0L)',
         'Date' => 'new Date(0L)',
         'Short' => '0',
-        'BigDecimal' => '0.00',
+        'BigDecimal' => 'BigDecimal(0.0)',
         'double' => '0.0',
         'float' => '0.0',
     }->{$type};
