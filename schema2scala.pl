@@ -142,7 +142,7 @@ EOF
 
                 my $lcname = lc $name;
                 
-                my $attrib = ucfirst attribname($name);
+                my $attrib = uc $name eq $name ? uc attribname($name) : ucfirst attribname($name);
 
                 push @values, "\tval $attrib = Value($id, \"$name\")";
                 push @prints, "\t\t\tcase $attrib => return \"$name\"";
