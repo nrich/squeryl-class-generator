@@ -161,20 +161,20 @@ EOF
 
             print <<EOF;
 object $classname extends Enumeration {
-\ttype $classname = Value
+\ttype Enum = Value
 $values_list
 
-\tdef asString(v: $classname): String =
+\tdef asString(v: Enum): String =
 \t\tv match {
 $prints_list
 \t\t}
 
-\tdef from(v: Int): $classname =
+\tdef from(v: Int): Enum =
 \t\tv match {
 $ints_list
 \t\t}
 
-\tdef from(v: String): $classname =
+\tdef from(v: String): Enum =
 \t\tv.toLowerCase match {
 $strings_list
 \t\t}
@@ -226,7 +226,7 @@ EOF
                     $paramname = reserved_name($paramname) || $paramname;
 
                     if ($structure->{$othertable}->{enum}) {
-                        $type = "$othertype.$othertype";
+                        $type = "$othertype.Enum";
                         $attribname = $paramname;
                         $col_default = "$othertype.from($default)";
 
@@ -268,7 +268,7 @@ EOF
                     $paramname = reserved_name($paramname) || $paramname;
 
                     if ($structure->{$othertable}->{enum}) {
-                        $type = "$othertype.$othertype";
+                        $type = "$othertype.Enum";
                         $attribname = $paramname;
 
                         my $defval = $structure->{$othertable}->{enum}->[0]->[0];
