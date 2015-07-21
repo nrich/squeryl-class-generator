@@ -421,21 +421,24 @@ EOF
         my $build_default_obj_list = "\t//No simple object constructor";
         my $default_obj_list = "\t//No full object constructor";
 
+	my $classdef = $classname =~ /Lookup$/ ? 'private def' : 'def';
+
         if (scalar @no_default != scalar @build_default) {
-            $build_default_list = "\tdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', @build_default) . ')';
+            $build_default_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', @build_default) . ')';
         }
 
         if ($has_default_obj) {
-            $build_default_obj_list = "\tdef this(" . (join ', ', @no_default_obj) . ") =\n\t\tthis(" . (join ', ', @build_default_obj) . ')';  
+            $build_default_obj_list = "\t$classdef this(" . (join ', ', @no_default_obj) . ") =\n\t\tthis(" . (join ', ', @build_default_obj) . ')';  
 
             if (scalar @no_default_obj != scalar @default_full) {
-                $default_obj_list = "\tdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+                $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
             }
         } elsif ($has_full_obj) {
-            $default_obj_list = "\tdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+            $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
         }
 
         my $collist = join (",\n", @cols);
+
 
         my $fkeyslist = join ("\n", @fkeys);
 
@@ -443,7 +446,7 @@ EOF
 class $classname (
 $collist
 ) extends ${schema_name}Db2Object${idtype} {
-\tdef this() = 
+\t$classdef this() = 
 \t\tthis($default_list)
 $build_default_list
 $build_default_obj_list
