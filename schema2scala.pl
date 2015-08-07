@@ -257,7 +257,6 @@ EOF
                 push @build_default_obj, $col_default;
             } else {
                 if ($refers and %$refers and scalar keys %$refers == 1) {
-                    $has_default_obj = 1;
 
                     my $othertable = (keys %$refers)[0];
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
@@ -285,6 +284,7 @@ EOF
                         push @default_full, "$attribname: $type";
                         push @build_default_full, "$attribname";
                     } else {
+                        $has_default_obj = 1;
                         push @no_default, "${attribname}: ${type}";
                         push @build_default, $attribname;
 
