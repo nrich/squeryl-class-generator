@@ -629,6 +629,8 @@ sub type_default {
         } elsif ($type eq 'Timestamp') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Timestamp.valueOf(\"$1\")";
+            } elsif ($defaultval =~ /^'(.+?)'\:\:timestamp/) {
+                return "Timestamp.valueOf(\"$1\")";
             }
         } elsif ($type eq 'Date') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
