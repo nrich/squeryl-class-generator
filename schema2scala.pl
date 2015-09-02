@@ -134,6 +134,7 @@ EOF
         if ($table =~ /lookup$/) {
             my @values = ();
             my @prints = ();
+            my @iprints = ();
             my @ints = ();
             my @strings = ();
 
@@ -146,16 +147,19 @@ EOF
 
                 push @values, "\tval $attrib = Value($id, \"$name\")";
                 push @prints, "\t\t\tcase $attrib => return \"$name\"";
+                push @iprints, "\t\t\tcase $attrib => return $id";
                 push @ints, "\t\t\tcase $id => return $attrib";
                 push @strings, "\t\t\tcase \"$lcname\" => return $attrib";
             } 
 
             push @prints, "\t\t\tcase _ => throw new IllegalArgumentException";
+            push @iprints, "\t\t\tcase _ => throw new IllegalArgumentException";
             push @ints, "\t\t\tcase _ => throw new IllegalArgumentException";
             push @strings, "\t\t\tcase _ => throw new IllegalArgumentException";
 
             my $values_list = join("\n", @values);
             my $prints_list = join("\n", @prints);
+            my $iprints_list = join("\n", @iprints);
             my $ints_list = join("\n", @ints);
             my $strings_list = join("\n", @strings);
 
@@ -168,6 +172,12 @@ $values_list
 \t\tv match {
 $prints_list
 \t\t}
+
+\tdef asInt(v: Enum): Int =
+\t\tv match {
+$iprints_list
+\t\t}
+
 
 \tdef from(v: Int): Enum =
 \t\tv match {
@@ -687,8 +697,8 @@ sub pluralize {
     my ($text) = @_;
 
     $text = $text =~ /s$/ ? "${text}es" : "${text}s";
-
     $text =~ s/eses$/es/;
+    $text =~ s/ys$/ies/;
 
     return $text;
 }
