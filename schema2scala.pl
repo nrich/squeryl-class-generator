@@ -682,6 +682,7 @@ sub pluralize {
     $text = $text =~ /s$/ ? "${text}es" : "${text}s";
 
     $text =~ s/eses$/es/;
+    $text =~ s/ys$/ies/;
 
     return $text;
 }
