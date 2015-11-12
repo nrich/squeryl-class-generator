@@ -134,6 +134,7 @@ EOF
         if ($table =~ /lookup$/) {
             my @values = ();
             my @prints = ();
+            my @iprints = ();
             my @ints = ();
             my @strings = ();
 
@@ -142,39 +143,48 @@ EOF
 
                 my $lcname = lc $name;
                 
-                my $attrib = ucfirst attribname($name);
+                my $attrib = uc $name eq $name ? uc attribname($name) : ucfirst attribname($name);
 
                 push @values, "\tval $attrib = Value($id, \"$name\")";
                 push @prints, "\t\t\tcase $attrib => return \"$name\"";
+                push @iprints, "\t\t\tcase $attrib => return $id";
                 push @ints, "\t\t\tcase $id => return $attrib";
                 push @strings, "\t\t\tcase \"$lcname\" => return $attrib";
             } 
 
             push @prints, "\t\t\tcase _ => throw new IllegalArgumentException";
+            push @iprints, "\t\t\tcase _ => throw new IllegalArgumentException";
             push @ints, "\t\t\tcase _ => throw new IllegalArgumentException";
             push @strings, "\t\t\tcase _ => throw new IllegalArgumentException";
 
             my $values_list = join("\n", @values);
             my $prints_list = join("\n", @prints);
+            my $iprints_list = join("\n", @iprints);
             my $ints_list = join("\n", @ints);
             my $strings_list = join("\n", @strings);
 
             print <<EOF;
 object $classname extends Enumeration {
-\ttype $classname = Value
+\ttype Enum = Value
 $values_list
 
-\tdef asString(v: $classname): String =
+\tdef asString(v: Enum): String =
 \t\tv match {
 $prints_list
 \t\t}
 
-\tdef from(v: Int): $classname =
+\tdef asInt(v: Enum): Int =
+\t\tv match {
+$iprints_list
+\t\t}
+
+
+\tdef from(v: Int): Enum =
 \t\tv match {
 $ints_list
 \t\t}
 
-\tdef from(v: String): $classname =
+\tdef from(v: String): Enum =
 \t\tv.toLowerCase match {
 $strings_list
 \t\t}
@@ -226,7 +236,7 @@ EOF
                     $paramname = reserved_name($paramname) || $paramname;
 
                     if ($structure->{$othertable}->{enum}) {
-                        $type = "$othertype.$othertype";
+                        $type = "$othertype.Enum";
                         $attribname = $paramname;
                         $col_default = "$othertype.from($default)";
 
@@ -257,7 +267,6 @@ EOF
                 push @build_default_obj, $col_default;
             } else {
                 if ($refers and %$refers and scalar keys %$refers == 1) {
-                    $has_default_obj = 1;
 
                     my $othertable = (keys %$refers)[0];
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
@@ -268,7 +277,7 @@ EOF
                     $paramname = reserved_name($paramname) || $paramname;
 
                     if ($structure->{$othertable}->{enum}) {
-                        $type = "$othertype.$othertype";
+                        $type = "$othertype.Enum";
                         $attribname = $paramname;
 
                         my $defval = $structure->{$othertable}->{enum}->[0]->[0];
@@ -285,6 +294,7 @@ EOF
                         push @default_full, "$attribname: $type";
                         push @build_default_full, "$attribname";
                     } else {
+                        $has_default_obj = 1;
                         push @no_default, "${attribname}: ${type}";
                         push @build_default, $attribname;
 
@@ -421,21 +431,24 @@ EOF
         my $build_default_obj_list = "\t//No simple object constructor";
         my $default_obj_list = "\t//No full object constructor";
 
+	my $classdef = $classname =~ /Lookup$/ ? 'private def' : 'def';
+
         if (scalar @no_default != scalar @build_default) {
-            $build_default_list = "\tdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', @build_default) . ')';
+            $build_default_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', @build_default) . ')';
         }
 
         if ($has_default_obj) {
-            $build_default_obj_list = "\tdef this(" . (join ', ', @no_default_obj) . ") =\n\t\tthis(" . (join ', ', @build_default_obj) . ')';  
+            $build_default_obj_list = "\t$classdef this(" . (join ', ', @no_default_obj) . ") =\n\t\tthis(" . (join ', ', @build_default_obj) . ')';  
 
             if (scalar @no_default_obj != scalar @default_full) {
-                $default_obj_list = "\tdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+                $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
             }
         } elsif ($has_full_obj) {
-            $default_obj_list = "\tdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+            $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
         }
 
         my $collist = join (",\n", @cols);
+
 
         my $fkeyslist = join ("\n", @fkeys);
 
@@ -443,7 +456,7 @@ EOF
 class $classname (
 $collist
 ) extends ${schema_name}Db2Object${idtype} {
-\tdef this() = 
+\t$classdef this() = 
 \t\tthis($default_list)
 $build_default_list
 $build_default_obj_list
@@ -626,11 +639,15 @@ sub type_default {
         } elsif ($type eq 'Timestamp') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Timestamp.valueOf(\"$1\")";
+            } elsif ($defaultval =~ /^'(.+?)'\:\:timestamp/) {
+                return "Timestamp.valueOf(\"$1\")";
             }
         } elsif ($type eq 'Date') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Date.valueOf(\"$1\")";
             }
+        } elsif ($type eq 'BigDecimal') {
+	    return "BigDecimal($defaultval)";
         }
 
         return {
@@ -655,7 +672,7 @@ sub type_default {
         'Timestamp' => 'new Timestamp(0L)',
         'Date' => 'new Date(0L)',
         'Short' => '0',
-        'BigDecimal' => '0.00',
+        'BigDecimal' => 'BigDecimal(0.0)',
         'double' => '0.0',
         'float' => '0.0',
     }->{$type};
@@ -680,7 +697,6 @@ sub pluralize {
     my ($text) = @_;
 
     $text = $text =~ /s$/ ? "${text}es" : "${text}s";
-
     $text =~ s/eses$/es/;
     $text =~ s/ys$/ies/;
 
