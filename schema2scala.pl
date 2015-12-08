@@ -195,7 +195,6 @@ EOF
             $classname .= "Lookup";
         }
 
-
         my @cols = ();
         my @defaults = ();
         my @no_default = ();
@@ -617,6 +616,7 @@ sub type_lookup {
         'double precision' => 'double',
         'float' => 'float',
         'real' => 'float',
+        'geometry' => 'String',
     }->{$type}||die "Unknown type `$type'\n";
 
     if ($nullable) {
@@ -633,7 +633,7 @@ sub type_default {
 
     if ($defaultval) {
         if ($type eq 'String') {
-            if ($defaultval =~ /^'(.+?)'\:\:character varying/) {
+            if ($defaultval =~ /^'(.*?)'\:\:character varying/) {
                 return "\"$1\"";
             }
         } elsif ($type eq 'Timestamp') {
@@ -696,7 +696,7 @@ sub table_to_classname {
 sub pluralize {
     my ($text) = @_;
 
-    $text = $text =~ /s$/ ? "${text}es" : "${text}s";
+    $text = $text =~ /sh?$/ ? "${text}es" : "${text}s";
     $text =~ s/eses$/es/;
     $text =~ s/ys$/ies/;
 
@@ -857,7 +857,7 @@ sub _generateStructure {
     my $dbh = $self->{dbh};
 
     my $column_query =<<EOF;
-select column_name, data_type,table_name,character_maximum_length,is_nullable,column_default,numeric_precision_radix,numeric_scale
+select column_name, data_type,table_name,character_maximum_length,is_nullable,column_default,numeric_precision_radix,numeric_scale,udt_name
 from information_schema.columns 
 where (table_name like '${schema}_%' or table_name = 'auth_user')
 EOF
@@ -866,7 +866,7 @@ EOF
     $sth->execute();
 
     my $structure = {};
-    while (my ($column, $datatype, $table, $len, $nullable, $default, $numeric_precision_radix, $numeric_scale) = $sth->fetchrow_array()) {
+    while (my ($column, $datatype, $table, $len, $nullable, $default, $numeric_precision_radix, $numeric_scale, $udt_name) = $sth->fetchrow_array()) {
 
         if ($table =~ /lookup$/ and $column ne 'id') {
             my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
@@ -887,7 +887,7 @@ EOF
         }
 
         $structure->{$table}->{columns}->{$column} = {
-            type => $datatype,
+            type => $datatype eq 'USER-DEFINED' ? $udt_name : $datatype,
             length => $len,
             nulls => $nullable,
             default => $default,
