@@ -453,7 +453,7 @@ EOF
 class $classname (
 $collist
 ) extends ${schema_name}Db2Object${idtype} {
-\t$classdef this() = 
+\t$classdef this() =
 \t\tthis($default_list)
 $build_default_list
 $build_default_obj_list
