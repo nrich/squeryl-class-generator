@@ -267,7 +267,6 @@ EOF
                 push @build_default_obj, $col_default;
             } else {
                 if ($refers and %$refers and scalar keys %$refers == 1) {
-
                     my $othertable = (keys %$refers)[0];
                     my $otherattrib = attribname((keys %{$refers->{$othertable}})[0]);
                     my $othertype = table_to_classname($schema, $othertable);
@@ -378,7 +377,6 @@ EOF
                             $optcol = attribname($optcol);
                         }
 
-                        #push @fkeys, "\tlazy val $optcol: $otherclassname =\n\t\t${schema_name}Schema.${fkey}.left(this).single";
                         push @fkeys, "\tdef $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
                     } else {
                         push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
@@ -405,7 +403,6 @@ EOF
                         
                     } else {
                         if ($nullable) {
-                            #push @fkeys, "\t\@Transient\n\tlazy val $otherattrib: Option[$otherclassname] =\n\t\t$attribname match {\n\t\t\tcase Some(x) => ${schema_name}Schema.${fkey}.right(this).headOption\n\t\t\tcase None => None\n\t\t}";
                             push @fkeys, "\tdef $otherattrib: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.right(this).headOption";
                             push @fkeys, "\tdef $otherattrib(v: Option[$otherclassname]): $classname = {\n\t\t v match {\n\t\t\tcase Some(x) => $attribname = Some(x.$oa)\n\t\t\tcase None => $attribname = None\n\t\t}\n\t\treturn this\n\t}";
                             push @fkeys, "\tdef $otherattrib(v: $otherclassname): $classname = {\n\t\t$attribname = Some(v.$oa)\n\t\treturn this\n\t}";
@@ -487,6 +484,7 @@ EOF
 
         my @declarations = ();
 
+        my $multi_unique = {};
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
             if ($column eq 'id') {
                 unshift @declarations, "\t\ts.id\t\t\tis(autoIncremented(\"${table}_id_seq\"))";
@@ -497,6 +495,7 @@ EOF
 
             my $indexes = $structure->{$table}->{columns}->{$column}->{indexes};
 
+
             if ($indexes and %$indexes) {
                 for my $index (sort {length $a <=> length $b} keys %$indexes) {
                     next if $index =~ /_like$/;
@@ -504,7 +503,16 @@ EOF
                     my $is_unique = $structure->{$table}->{columns}->{$column}->{indexes}->{$index}; 
 
                     if ($is_unique) {
-                        unshift @attribs, 'unique';
+                        for my $col (grep {$_ ne $column} keys %{$structure->{$table}->{columns}}) {
+                            if ($structure->{$table}->{columns}->{$col}->{indexes}->{$index}) {
+                                $multi_unique->{$index}->{$col} = 1;
+                            }
+                        }
+
+                        unless (defined $multi_unique->{$index}) {
+                            unshift @attribs, "indexed(\"$index\")";
+                            unshift @attribs, 'unique';
+                        }
                     } else {
                         push @attribs, "indexed(\"$index\")";
                     }
@@ -541,6 +549,11 @@ EOF
                 push @declarations, "\t\ts.$attribname\t\tis($attriblist)";
             }
 
+        }
+
+        for my $index (keys %$multi_unique) {
+            my $columns = join ',', map {'s.' . attribname($_)} keys %{$multi_unique->{$index}};
+            push @declarations, "\t\tcolumns($columns)\t\tare(unique, indexed(\"$index\"))";
         }
 
         if (@declarations) {
