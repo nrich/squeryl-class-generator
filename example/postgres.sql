@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS example_payment;
 DROP TABLE IF EXISTS example_invoice;
+DROP TABLE IF EXISTS example_signup;
 DROP TABLE IF EXISTS example_user;
 DROP TABLE IF EXISTS example_user_state_lookup;
 DROP TABLE IF EXISTS example_invoice_state_lookup;
@@ -52,6 +53,17 @@ CREATE TABLE example_user (
 
 CREATE UNIQUE INDEX example_user_username_idx ON example_user(username);
 
+CREATE TABLE example_signup (
+        id serial primary key NOT NULL,
+        user_id integer NOT NULL,
+        created timestamp NOT NULL DEFAULT current_timestamp,
+        token varchar(32) NOT NULL,
+
+        FOREIGN KEY(user_id) REFERENCES example_user(id)
+);
+
+CREATE UNIQUE INDEX example_signup_user_id_token_idx ON example_signup(user_id, token);
+
 CREATE TABLE example_invoice (
 	id serial primary key NOT NULL,
         amount numeric(10,2) NOT NULL,
@@ -79,4 +91,4 @@ CREATE TABLE example_payment (
 
 CREATE UNIQUE INDEX example_payment_user_id_idx ON example_payment(invoice_id);
 
-GRANT ALL ON example_payment,example_payment_id_seq,example_user,example_user_id_seq,example_user_state_lookup,example_invoice_state_lookup,example_invoice,example_invoice_id_seq,example_payment_type_lookup TO example;
+GRANT ALL ON example_payment,example_payment_id_seq,example_user,example_user_id_seq,example_signup,example_signup_id_seq,example_user_state_lookup,example_invoice_state_lookup,example_invoice,example_invoice_id_seq,example_payment_type_lookup TO example;

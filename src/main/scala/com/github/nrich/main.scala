@@ -7,7 +7,7 @@ import org.squeryl.PrimitiveTypeMode._
 
 object SchemaExample {
 	def main(args: Array[String]) {
-                var dbtype = "sqlite";
+                var dbtype = "postgres";
 
                 if (args.length > 0) {
                     dbtype = args(0);

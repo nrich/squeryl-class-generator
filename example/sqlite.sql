@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS example_payment;
 DROP TABLE IF EXISTS example_invoice;
+DROP TABLE IF EXISTS example_signup;
 DROP TABLE IF EXISTS example_user;
 DROP TABLE IF EXISTS example_user_state_lookup;
 DROP TABLE IF EXISTS example_invoice_state_lookup;
@@ -51,6 +52,17 @@ CREATE TABLE example_user (
 );
 
 CREATE UNIQUE INDEX example_user_username_idx ON example_user(username);
+
+CREATE TABLE example_signup (
+        id serial primary key NOT NULL,
+        user_id integer NOT NULL,
+        created timestamp NOT NULL DEFAULT current_timestamp,
+        token varchar(32) NOT NULL,
+
+        FOREIGN KEY(user_id) REFERENCES example_user(id)
+);
+
+CREATE UNIQUE INDEX example_signup_user_id_token_idx ON example_signup(user_id, token);
 
 CREATE TABLE example_invoice (
 	id integer primary key NOT NULL,
