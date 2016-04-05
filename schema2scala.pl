@@ -454,10 +454,12 @@ EOF
         }
 
         my $assumptionslist = join "\n", @assumptions;
+        $assumptionslist ||= "\t//No assumptions";
 
         my $collist = join ",\n", @cols;
 
         my $fkeyslist = join "\n", @fkeys;
+        $fkeyslist ||= "\t//No foreign keys";
 
         print <<EOF;
 class $classname (
