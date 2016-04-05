@@ -339,9 +339,9 @@ object ExampleSchema extends Schema {
 		s.name		is(unique,indexed("example_user_state_lookup_name_idx"),dbType("character varying(32)"))
 	))
 
-	val example_signup_user_id_fkey = oneToManyRelation(users, signups).via((a,b) => a.id === b.userId)
 	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
 	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
 	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
+	val example_signup_user_id_fkey = oneToManyRelation(users, signups).via((a,b) => a.id === b.userId)
 }
 
