@@ -138,7 +138,7 @@ EOF
             my @ints = ();
             my @strings = ();
 
-            for my $val (@{$structure->{$table}->{enum}}) {
+            for my $val (sort @{$structure->{$table}->{enum}}) {
                 my ($id, $name) = @$val;
 
                 my $lcname = lc $name;
@@ -334,14 +334,14 @@ EOF
             my $referred = $structure->{$table}->{columns}->{$column}->{referred};
             my $refers = $structure->{$table}->{columns}->{$column}->{refers};
 
-            for my $othertable (keys %{$referred}) {
+            for my $othertable (sort keys %{$referred}) {
                 my $otherclassname = table_to_classname($schema, $othertable);
                 my $plural = pluralize($othertable);
                 $plural =~ s/${schema}_//;
 
                 my $explicit = keys %{$referred->{$othertable}} > 1 ? 1 : 0;
 
-                for my $othercol (keys %{$referred->{$othertable}}) {
+                for my $othercol (sort keys %{$referred->{$othertable}}) {
                     my $fkey = $referred->{$othertable}->{$othercol};
 
                     if ($explicit) {
@@ -356,11 +356,11 @@ EOF
 
                     my @indexes = keys %{$structure->{$othertable}->{columns}->{$othercol}->{indexes}||{}};
 
-                    for my $index (@indexes) {
+                    for my $index (sort @indexes) {
                         next unless $structure->{$othertable}->{columns}->{$othercol}->{indexes}->{$index};
 
                         $is_unique = 1;
-                        for my $col (grep {$_ ne $othercol} keys %{$structure->{$othertable}->{columns}}) {
+                        for my $col (grep {$_ ne $othercol} sort keys %{$structure->{$othertable}->{columns}}) {
                             if ($structure->{$othertable}->{columns}->{$col}->{indexes}->{$index}) {
                                 $is_unique = 0;
                             }
@@ -390,7 +390,7 @@ EOF
 
                 my $nullable = uc $structure->{$table}->{columns}->{$column}->{nulls} eq 'YES' ? 1 : 0;
 
-                for my $othercol (keys %{$refers->{$othertable}}) {
+                for my $othercol (sort keys %{$refers->{$othertable}}) {
                     my $fkey = $refers->{$othertable}->{$othercol};
 
                     my $otherattrib = attribname($column);
@@ -498,7 +498,7 @@ EOF
                     my $is_unique = $structure->{$table}->{columns}->{$column}->{indexes}->{$index}; 
 
                     if ($is_unique) {
-                        for my $col (grep {$_ ne $column} keys %{$structure->{$table}->{columns}}) {
+                        for my $col (grep {$_ ne $column} sort keys %{$structure->{$table}->{columns}}) {
                             if ($structure->{$table}->{columns}->{$col}->{indexes}->{$index}) {
                                 $multi_unique->{$index}->{$col} = 1;
                             }
@@ -575,24 +575,24 @@ EOF
         }
     }
 
-    for my $table (keys %$structure) {
+    for my $table (sort keys %$structure) {
         (my $varname = $table) =~ s/${schema}_//;
         $varname = lc $varname;
 
         my $plural = pluralize($varname);
 
-        for my $column (keys %{$structure->{$table}->{columns}}) {
+        for my $column (sort keys %{$structure->{$table}->{columns}}) {
             my $fkeys = $structure->{$table}->{columns}->{$column}->{refers};
 
             next unless $fkeys and %$fkeys;
 
-            for my $fkey (keys %$fkeys) {
+            for my $fkey (sort keys %$fkeys) {
                 (my $other = $fkey) =~ s/${schema}_//;
                 $other = lc $other;
 
                 $other = pluralize($other);
 
-                for my $othercol (keys %{$fkeys->{$fkey}}) {
+                for my $othercol (sort keys %{$fkeys->{$fkey}}) {
                     my $nullable = uc $structure->{$fkey}->{columns}->{$othercol}->{nulls} eq 'YES' ? 1 : 0;
                     next if $nullable;
                     next if $structure->{$fkey}->{enum};
@@ -788,7 +788,7 @@ sub generateSchemaData {
         push @tables, $name;
     }
 
-    for my $table (@tables) {
+    for my $table (sort @tables) {
         my $tableinfo = $dbh->prepare("PRAGMA table_info($table)");
         $tableinfo->execute();
 
@@ -823,7 +823,7 @@ sub generateSchemaData {
         }
     }
 
-    for my $table (@tables) {
+    for my $table (sort @tables) {
         my $fkeylist = $dbh->prepare("PRAGMA foreign_key_list($table)");
         $fkeylist->execute();
 
@@ -860,7 +860,7 @@ sub generateSchemaData {
 
     my $structure = $self->_generateStructure($schema);
 
-    for my $table (keys %$structure) {
+    for my $table (sort keys %$structure) {
         $self->_generateIndex($structure, $table); 
         $self->_generateFkeys($structure, $table); 
     }
@@ -1003,7 +1003,7 @@ sub generateSchemaData {
         push @tables, $name;
     }
 
-    for my $table (@tables) {
+    for my $table (sort @tables) {
         my $tableinfo = $dbh->prepare("SHOW COLUMNS FROM $table");
         $tableinfo->execute();
 
@@ -1040,7 +1040,7 @@ sub generateSchemaData {
         }
     }
 
-    for my $table (@tables) {
+    for my $table (sort @tables) {
         my $fkey_query =<<EOF;
 SELECT
     column_name,referenced_table_name,referenced_column_name
