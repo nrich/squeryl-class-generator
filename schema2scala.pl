@@ -191,7 +191,6 @@ $strings_list
 }
 
 EOF
-#            next;
             $classname .= "Lookup";
         }
 
@@ -282,7 +281,6 @@ EOF
                         my $defval = $structure->{$othertable}->{enum}->[0]->[0];
                         $col_default = "$othertype.from($defval)";
 
-                        #$structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
                         $structure->{$table}->{columns}->{$column}->{enum} = 1;
 
                         push @no_default, "${paramname}: ${type}";
@@ -447,7 +445,6 @@ EOF
 
         my $collist = join (",\n", @cols);
 
-
         my $fkeyslist = join ("\n", @fkeys);
 
         print <<EOF;
@@ -470,8 +467,6 @@ object ${schema_name}Schema extends Schema {
 EOF
 
     for my $table (sort keys %$structure) {
-#        next if $structure->{$table}->{enum};
-
         (my $varname = $table) =~ s/${schema}_//;
         $varname = lc $varname;
 
@@ -495,7 +490,6 @@ EOF
             my @attribs = ();
 
             my $indexes = $structure->{$table}->{columns}->{$column}->{indexes};
-
 
             if ($indexes and %$indexes) {
                 for my $index (sort {length $a <=> length $b} keys %$indexes) {
@@ -549,7 +543,6 @@ EOF
                 
                 push @declarations, "\t\ts.$attribname\t\tis($attriblist)";
             }
-
         }
 
         for my $index (keys %$multi_unique) {
@@ -807,7 +800,6 @@ sub generateSchemaData {
                 $len = $2; 
             }
 
-
             if ($table =~ /lookup$/ and $column ne 'id') {
                 my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
                 $rsth->execute();
@@ -820,7 +812,6 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
-            #$default ||= '';
             $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
             $structure->{$table}->{columns}->{$column} = {
@@ -829,7 +820,6 @@ sub generateSchemaData {
                 nulls => $notnullable ? 'NO' : 'YES',
                 default => $default,
             };
-
         }
     }
 
@@ -855,7 +845,6 @@ sub generateSchemaData {
                 $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $is_unique;
             }
         }
-
     }
 
     return $structure;
@@ -1021,14 +1010,12 @@ sub generateSchemaData {
         while (my ($column, $datatype, $nullable, undef, $default) = $tableinfo->fetchrow_array()) {
             my $len = undef;
 
-
             if ($datatype eq 'int(11)') {
                 $datatype = 'integer';
             } elsif ($datatype =~ /^(.+?)\((.+?)\)$/) {
                 $datatype = $1;
                 $len = $2; 
             }
-
 
             if ($table =~ /lookup$/ and $column ne 'id') {
                 my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
@@ -1050,7 +1037,6 @@ sub generateSchemaData {
                 nulls => $nullable,
                 default => $default,
             };
-
         }
     }
 
@@ -1088,15 +1074,12 @@ WHERE
     AND column_name != index_name
 EOF
 
-
-
         my $indexlist = $dbh->prepare($index_query);
         $indexlist->execute($schema, $table);
 
         while (my ($column, $index, $not_unique) = $indexlist->fetchrow_array()) {
             $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $not_unique ? 0 : 1;
         }
-
     }
 
     return $structure;
