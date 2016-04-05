@@ -62,6 +62,7 @@ CREATE TABLE example_signup (
         FOREIGN KEY(user_id) REFERENCES example_user(id)
 );
 
+CREATE UNIQUE INDEX example_signup_user_id_idx ON example_signup(user_id);
 CREATE UNIQUE INDEX example_signup_user_id_token_idx ON example_signup(user_id, token);
 
 CREATE TABLE example_invoice (

@@ -224,8 +224,8 @@ class User (
 		ExampleSchema.example_invoice_payer_id_fkey.left(this)
 	lazy val userInvoices: OneToMany[Invoice] =
 		ExampleSchema.example_invoice_user_id_fkey.left(this)
-	lazy val signups: OneToMany[Signup] =
-		ExampleSchema.example_signup_user_id_fkey.left(this)
+	def signup: Option[Signup] =
+		ExampleSchema.example_signup_user_id_fkey.left(this).headOption
 }
 
 object UserState extends Enumeration {
@@ -320,6 +320,7 @@ object ExampleSchema extends Schema {
 		s.id			is(autoIncremented("example_signup_id_seq")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.token		is(dbType("character varying(32)")),
+		s.userId		is(unique,indexed("example_signup_user_id_idx")),
 		columns(s.token,s.userId)		are(unique, indexed("example_signup_user_id_token_idx"))
 	))
 
