@@ -240,6 +240,7 @@ EOF
                         $col_default = "$othertype.from($default)";
 
                         $structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
+                        $structure->{$table}->{columns}->{$column}->{enum} = 1;
 
                         push @build_default_full, "$attribname";
                         push @default_full, "$attribname: $type"; 
@@ -282,6 +283,7 @@ EOF
                         $col_default = "$othertype.from($defval)";
 
                         #$structure->{$table}->{columns}->{$column}->{defaultval} = $col_default;
+                        $structure->{$table}->{columns}->{$column}->{enum} = 1;
 
                         push @no_default, "${paramname}: ${type}";
                         push @build_default, $attribname;
@@ -551,7 +553,20 @@ EOF
         }
 
         for my $index (keys %$multi_unique) {
-            my $columns = join ',', map {'s.' . attribname($_)} keys %{$multi_unique->{$index}};
+            my @columns = ();
+
+            for my $col (keys %{$multi_unique->{$index}}) {
+                my $attribname = attribname($col);
+
+                if ($structure->{$table}->{columns}->{$col}->{enum}) {
+                    $attribname =~ s/Id$//;
+                }
+
+                $attribname = reserved_name($attribname) || $attribname;
+                push @columns, "s.$attribname";
+            }
+
+            my $columns = join ',', @columns;
             push @declarations, "\t\tcolumns($columns)\t\tare(unique, indexed(\"$index\"))";
         }
 
