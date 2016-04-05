@@ -365,11 +365,12 @@ EOF
                                 $is_unique = 0;
                             }
                         }
+
+                        last if $is_unique;
                     }
 
                     if ($is_unique) {
                         my $optcol = attribname($othercol);
-
                         if (!$explicit) {
                             $optcol = $othertable;
                             $optcol =~ s/${schema}_//;
