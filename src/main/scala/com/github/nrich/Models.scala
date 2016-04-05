@@ -55,7 +55,7 @@ class Invoice (
 		userId = v.id
 		return this
 	}
-
+	//No assumptions
 }
 
 object InvoiceState extends Enumeration {
@@ -106,8 +106,8 @@ class InvoiceStateLookup (
 	//No simple constructor
 	//No simple object constructor
 	//No full object constructor
-
-
+	//No foreign keys
+	//No assumptions
 }
 
 class Payment (
@@ -184,8 +184,8 @@ class PaymentTypeLookup (
 	//No simple constructor
 	//No simple object constructor
 	//No full object constructor
-
-
+	//No foreign keys
+	//No assumptions
 }
 
 class Signup (
@@ -288,8 +288,8 @@ class UserStateLookup (
 	//No simple constructor
 	//No simple object constructor
 	//No full object constructor
-
-
+	//No foreign keys
+	//No assumptions
 }
 
 object ExampleSchema extends Schema {
