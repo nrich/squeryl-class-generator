@@ -545,10 +545,10 @@ EOF
             }
         }
 
-        for my $index (keys %$multi_unique) {
+        for my $index (sort keys %$multi_unique) {
             my @columns = ();
 
-            for my $col (keys %{$multi_unique->{$index}}) {
+            for my $col (sort keys %{$multi_unique->{$index}}) {
                 my $attribname = attribname($col);
 
                 if ($structure->{$table}->{columns}->{$col}->{enum}) {
