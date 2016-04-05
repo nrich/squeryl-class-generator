@@ -184,17 +184,6 @@ class PaymentTypeLookup (
 
 }
 
-class Provider (
-	var name: String
-) extends ExampleDb2ObjectInt {
-	def this() =
-		this("")
-	//No simple constructor
-	//No simple object constructor
-	//No full object constructor
-
-}
-
 class Signup (
 	var created: Timestamp,
 	var token: String,
@@ -231,10 +220,10 @@ class User (
 		this(new Timestamp(System.currentTimeMillis), emailAddress, password, UserState.from(0), username)
 	//No simple object constructor
 	//No full object constructor
-	lazy val userInvoices: OneToMany[Invoice] =
-		ExampleSchema.example_invoice_user_id_fkey.left(this)
 	lazy val payerInvoices: OneToMany[Invoice] =
 		ExampleSchema.example_invoice_payer_id_fkey.left(this)
+	lazy val userInvoices: OneToMany[Invoice] =
+		ExampleSchema.example_invoice_user_id_fkey.left(this)
 	lazy val signups: OneToMany[Signup] =
 		ExampleSchema.example_signup_user_id_fkey.left(this)
 }
@@ -317,7 +306,7 @@ object ExampleSchema extends Schema {
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.invoiceId		is(unique,indexed("example_payment_user_id_idx")),
 		s.ref		is(dbType("character varying(32)")),
-		columns(s.typeval,s.ref)		are(unique, indexed("example_payment_type_id_ref_idx"))
+		columns(s.ref,s.typeval)		are(unique, indexed("example_payment_type_id_ref_idx"))
 	))
 
 	val payment_type_lookups = table[PaymentTypeLookup]("example_payment_type_lookup")
@@ -326,18 +315,12 @@ object ExampleSchema extends Schema {
 		s.name		is(unique,indexed("example_payment_type_lookup_name_idx"),dbType("character varying(32)"))
 	))
 
-	val providers = table[Provider]("example_provider")
-	on(providers)(s => declare(
-		s.id			is(autoIncremented("example_provider_id_seq")),
-		s.name		is(unique,indexed("example_provider_name_idx"),dbType("character varying(254)"))
-	))
-
 	val signups = table[Signup]("example_signup")
 	on(signups)(s => declare(
 		s.id			is(autoIncremented("example_signup_id_seq")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.token		is(dbType("character varying(32)")),
-		columns(s.userId,s.token)		are(unique, indexed("example_signup_user_id_token_idx"))
+		columns(s.token,s.userId)		are(unique, indexed("example_signup_user_id_token_idx"))
 	))
 
 	val users = table[User]("example_user")
@@ -356,9 +339,9 @@ object ExampleSchema extends Schema {
 		s.name		is(unique,indexed("example_user_state_lookup_name_idx"),dbType("character varying(32)"))
 	))
 
+	val example_signup_user_id_fkey = oneToManyRelation(users, signups).via((a,b) => a.id === b.userId)
 	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
 	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
 	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
-	val example_signup_user_id_fkey = oneToManyRelation(users, signups).via((a,b) => a.id === b.userId)
 }
 
