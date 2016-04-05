@@ -55,6 +55,7 @@ class Invoice (
 		userId = v.id
 		return this
 	}
+
 }
 
 object InvoiceState extends Enumeration {
@@ -106,6 +107,7 @@ class InvoiceStateLookup (
 	//No simple object constructor
 	//No full object constructor
 
+
 }
 
 class Payment (
@@ -131,6 +133,7 @@ class Payment (
 		invoiceId = v.id
 		return this
 	}
+	assume(ref.length <= 32, "ref must be at most 32 characters")
 }
 
 object PaymentType extends Enumeration {
@@ -182,6 +185,7 @@ class PaymentTypeLookup (
 	//No simple object constructor
 	//No full object constructor
 
+
 }
 
 class Signup (
@@ -204,6 +208,7 @@ class Signup (
 		userId = v.id
 		return this
 	}
+	assume(token.length <= 32, "token must be at most 32 characters")
 }
 
 class User (
@@ -226,6 +231,8 @@ class User (
 		ExampleSchema.example_invoice_user_id_fkey.left(this)
 	def signup: Option[Signup] =
 		ExampleSchema.example_signup_user_id_fkey.left(this).headOption
+	assume(password.length <= 254, "password must be at most 254 characters")
+	assume(username.length <= 254, "username must be at most 254 characters")
 }
 
 object UserState extends Enumeration {
@@ -281,6 +288,7 @@ class UserStateLookup (
 	//No simple constructor
 	//No simple object constructor
 	//No full object constructor
+
 
 }
 
