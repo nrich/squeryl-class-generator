@@ -206,6 +206,8 @@ EOF
         my @default_full = ();
         my @build_default_full = ();
 
+        my @assumptions = ();
+
         my $idtype = 'Long';
 
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
@@ -322,6 +324,12 @@ EOF
 
             $col .= "\tvar $attribname: $type";
 
+            if (my $len = $structure->{$table}->{columns}->{$column}->{length}) {
+                if ($type eq 'String') {
+                    push @assumptions, "\tassume($attribname.length <= $len, \"$attribname must be at most $len characters\")";
+                }
+            }
+
             push @cols, $col;
         } 
 
@@ -417,6 +425,7 @@ EOF
 
         if ($structure->{$table}->{enum}) {
             @fkeys = ();
+            @assumptions = ();
         }
 
         my $default_list = "\t//No default constructor";
@@ -444,9 +453,11 @@ EOF
             $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
         }
 
-        my $collist = join (",\n", @cols);
+        my $assumptionslist = join "\n", @assumptions;
 
-        my $fkeyslist = join ("\n", @fkeys);
+        my $collist = join ",\n", @cols;
+
+        my $fkeyslist = join "\n", @fkeys;
 
         print <<EOF;
 class $classname (
@@ -458,6 +469,7 @@ $build_default_list
 $build_default_obj_list
 $default_obj_list
 $fkeyslist
+$assumptionslist
 }
 
 EOF
