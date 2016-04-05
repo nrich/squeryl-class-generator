@@ -44,6 +44,8 @@ object SchemaExample {
                         user.state = UserState.Active
                         users.update(user)
 
+                        val signup = signups.insert(new Signup("12345678901234567890123456789012", user))
+
                         val invoice = invoices.insert(new Invoice(10.00, user))
                         println(invoice.payment)
                         val payment = payments.insert(new Payment(10.00, invoice, "test", PaymentType.Cash))
