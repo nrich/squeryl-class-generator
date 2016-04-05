@@ -46,7 +46,7 @@ object SchemaExample {
 
                         val invoice = invoices.insert(new Invoice(10.00, user))
                         println(invoice.payment)
-                        val payment = payments.insert(new Payment(10.00, invoice, PaymentType.Cash))
+                        val payment = payments.insert(new Payment(10.00, invoice, "test", PaymentType.Cash))
                         println(invoice.payment)
 
                         val payment2 = from(payments)(p =>
@@ -54,7 +54,6 @@ object SchemaExample {
                         select(p)).single
 
                         println(payment2.invoice)
-
                         printDdl(println(_))
 		}
 	}

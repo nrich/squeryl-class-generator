@@ -84,11 +84,12 @@ CREATE TABLE example_payment (
 	invoice_id integer NOT NULL,
         created timestamp NOT NULL DEFAULT current_timestamp,
         type_id integer NOT NULL,
+        ref varchar(32) NOT NULL,
 
         FOREIGN KEY(invoice_id) REFERENCES example_invoice(id),
         FOREIGN KEY(type_id) REFERENCES example_payment_type_lookup(id)
 );
 
 CREATE UNIQUE INDEX example_payment_user_id_idx ON example_payment(invoice_id);
-
+CREATE UNIQUE INDEX example_payment_type_id_ref_idx ON example_payment(type_id, ref);
 

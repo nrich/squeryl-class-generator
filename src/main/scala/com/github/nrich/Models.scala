@@ -113,17 +113,18 @@ class Payment (
 	var created: Timestamp,
 	@Column("invoice_id")
 	var invoiceId: Int,
+	var ref: String,
 	@Column("type_id")
 	var typeval: PaymentType.Enum
 ) extends ExampleDb2ObjectInt {
 	def this() =
-		this(BigDecimal(0.0), new Timestamp(System.currentTimeMillis), 0, PaymentType.from(1))
-	def this(amount: BigDecimal, invoiceId: Int, typeval: PaymentType.Enum) =
-		this(amount, new Timestamp(System.currentTimeMillis), invoiceId, typeval)
-	def this(amount: BigDecimal, invoice: Invoice, typeval: PaymentType.Enum) =
-		this(amount, new Timestamp(System.currentTimeMillis), invoice.id, typeval)
-	def this(amount: BigDecimal, created: Timestamp, invoice: Invoice, typeval: PaymentType.Enum) =
-		this(amount, created, invoice.id, typeval)
+		this(BigDecimal(0.0), new Timestamp(System.currentTimeMillis), 0, "", PaymentType.from(1))
+	def this(amount: BigDecimal, invoiceId: Int, ref: String, typeval: PaymentType.Enum) =
+		this(amount, new Timestamp(System.currentTimeMillis), invoiceId, ref, typeval)
+	def this(amount: BigDecimal, invoice: Invoice, ref: String, typeval: PaymentType.Enum) =
+		this(amount, new Timestamp(System.currentTimeMillis), invoice.id, ref, typeval)
+	def this(amount: BigDecimal, created: Timestamp, invoice: Invoice, ref: String, typeval: PaymentType.Enum) =
+		this(amount, created, invoice.id, ref, typeval)
 	lazy val invoice: Invoice =
 		ExampleSchema.example_payment_invoice_id_fkey.right(this).single
 	def invoice(v: Invoice): Payment = {
@@ -314,7 +315,9 @@ object ExampleSchema extends Schema {
 		s.id			is(autoIncremented("example_payment_id_seq")),
 		s.amount		is(dbType("numeric(10,2)")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
-		s.invoiceId		is(unique,indexed("example_payment_user_id_idx"))
+		s.invoiceId		is(unique,indexed("example_payment_user_id_idx")),
+		s.ref		is(dbType("character varying(32)")),
+		columns(s.typeval,s.ref)		are(unique, indexed("example_payment_type_id_ref_idx"))
 	))
 
 	val payment_type_lookups = table[PaymentTypeLookup]("example_payment_type_lookup")
@@ -353,9 +356,9 @@ object ExampleSchema extends Schema {
 		s.name		is(unique,indexed("example_user_state_lookup_name_idx"),dbType("character varying(32)"))
 	))
 
-	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
-	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
 	val example_invoice_payer_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.payerId)
+	val example_invoice_user_id_fkey = oneToManyRelation(users, invoices).via((a,b) => a.id === b.userId)
+	val example_payment_invoice_id_fkey = oneToManyRelation(invoices, payments).via((a,b) => a.id === b.invoiceId)
 	val example_signup_user_id_fkey = oneToManyRelation(users, signups).via((a,b) => a.id === b.userId)
 }
 
