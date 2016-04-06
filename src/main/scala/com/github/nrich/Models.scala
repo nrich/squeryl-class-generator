@@ -55,7 +55,7 @@ class Invoice (
 		userId = v.id
 		return this
 	}
-	//No assumptions
+	assume(amount <= 999.99 && amount >= -999.99, "amount must be between -999.99 and 999.99 inclusive")
 }
 
 object InvoiceState extends Enumeration {
@@ -133,6 +133,7 @@ class Payment (
 		invoiceId = v.id
 		return this
 	}
+	assume(amount <= 999.99 && amount >= -999.99, "amount must be between -999.99 and 999.99 inclusive")
 	assume(ref.length <= 32, "ref must be at most 32 characters")
 }
 
@@ -296,7 +297,7 @@ object ExampleSchema extends Schema {
 	val invoices = table[Invoice]("example_invoice")
 	on(invoices)(s => declare(
 		s.id			is(autoIncremented("example_invoice_id_seq")),
-		s.amount		is(dbType("numeric(10,2)")),
+		s.amount		is(dbType("numeric(5,2)")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.state		defaultsTo(InvoiceState.from(3))
 	))
@@ -310,7 +311,7 @@ object ExampleSchema extends Schema {
 	val payments = table[Payment]("example_payment")
 	on(payments)(s => declare(
 		s.id			is(autoIncremented("example_payment_id_seq")),
-		s.amount		is(dbType("numeric(10,2)")),
+		s.amount		is(dbType("numeric(5,2)")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
 		s.invoiceId		is(unique,indexed("example_payment_user_id_idx")),
 		s.ref		is(dbType("character varying(32)")),
