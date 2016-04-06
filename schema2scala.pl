@@ -138,7 +138,7 @@ EOF
             my @ints = ();
             my @strings = ();
 
-            for my $val (sort @{$structure->{$table}->{enum}}) {
+            for my $val (@{$structure->{$table}->{enum}}) {
                 my ($id, $name) = @$val;
 
                 my $lcname = lc $name;
