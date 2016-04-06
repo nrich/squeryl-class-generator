@@ -54,7 +54,7 @@ CREATE TABLE example_user (
 CREATE UNIQUE INDEX example_user_username_idx ON example_user(username);
 
 CREATE TABLE example_signup (
-        id serial primary key NOT NULL,
+        id integer primary key NOT NULL,
         user_id integer NOT NULL,
         created timestamp NOT NULL DEFAULT current_timestamp,
         token varchar(32) NOT NULL,
