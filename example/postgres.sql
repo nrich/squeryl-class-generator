@@ -67,7 +67,7 @@ CREATE UNIQUE INDEX example_signup_user_id_token_idx ON example_signup(user_id, 
 
 CREATE TABLE example_invoice (
 	id serial primary key NOT NULL,
-        amount numeric(10,2) NOT NULL,
+        amount numeric(5,2) NOT NULL,
 	user_id integer NOT NULL,
 	payer_id integer NULL,
 	state integer NOT NULL DEFAULT 3,
@@ -81,7 +81,7 @@ CREATE TABLE example_invoice (
 
 CREATE TABLE example_payment (
         id serial primary key NOT NULL,
-        amount numeric(10,2) NOT NULL,
+        amount numeric(5,2) NOT NULL,
 	invoice_id integer NOT NULL,
         created timestamp NOT NULL DEFAULT current_timestamp,
         type_id integer NOT NULL,
