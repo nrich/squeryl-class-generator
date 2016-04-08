@@ -686,11 +686,16 @@ sub type_default {
                 return "Timestamp.valueOf(\"$1\")";
             } elsif ($defaultval =~ /^'(.+?)'\:\:timestamp/) {
                 return "Timestamp.valueOf(\"$1\")";
+            } elsif ($defaultval =~ /^'(.+?)'/) {
+                return "Timestamp.valueOf(\"$1\")";
             }
         } elsif ($type eq 'Date') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Date.valueOf(\"$1\")";
+            } elsif ($defaultval =~ /^'(.+?)'/) {
+                return "Date.valueOf(\"$1\")";
             }
+
         } elsif ($type eq 'BigDecimal') {
 	    return "BigDecimal($defaultval)";
         }
