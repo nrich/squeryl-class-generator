@@ -651,6 +651,7 @@ sub type_lookup {
         'boolean' => 'Boolean',
         'date' => 'Date',
         'text' => 'String',
+        'datetime' => 'Timestamp',
         'timestamp' => 'Timestamp',
         'timestamp with time zone' => 'Timestamp',
         'timestamp without time zone' => 'Timestamp',
@@ -662,7 +663,7 @@ sub type_lookup {
         'float' => 'float',
         'real' => 'float',
         'geometry' => 'String',
-    }->{$type}||die "Unknown type `$type'\n";
+    }->{lc $type}||die "Unknown type `$type'\n";
 
     if ($nullable) {
         $newtype = "Option[$newtype]";
