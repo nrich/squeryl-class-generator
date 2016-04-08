@@ -47,17 +47,11 @@ object SchemaExample {
                         val signup = signups.insert(new Signup("12345678901234567890123456789012", user))
 
                         val invoice = invoices.insert(new Invoice(999.99, user))
-                        println(invoice.payment)
                         val payment = payments.insert(new Payment(-999.99, invoice, "test", PaymentType.Cash))
-                        println(invoice.payment)
+                        payment.invoice.payer(user).state = InvoiceState.Paid
+                        invoices.update(payment.invoice)
 
-                        val payment2 = from(payments)(p =>
-                        where(p.id === 1)
-                        select(p)).single
-
-                        println(payment2.invoice)
                         printDdl(println(_))
 		}
 	}
 }
-
