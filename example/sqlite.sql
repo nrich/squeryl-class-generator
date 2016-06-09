@@ -68,6 +68,8 @@ CREATE UNIQUE INDEX example_signup_user_id_token_idx ON example_signup(user_id, 
 CREATE TABLE example_invoice (
 	id integer primary key NOT NULL,
         amount numeric(5,2) NOT NULL,
+        refund numeric(5,2),
+        note varchar(254),
 	user_id integer NOT NULL,
 	payer_id integer NULL,
 	state integer NOT NULL DEFAULT 3,

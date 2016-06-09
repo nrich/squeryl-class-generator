@@ -327,6 +327,8 @@ EOF
             if (my $len = $structure->{$table}->{columns}->{$column}->{length}) {
                 if ($type eq 'String') {
                     push @assumptions, "\tassume($attribname.length <= $len, \"$attribname must be at most $len characters\")";
+                } elsif ($type eq 'Option[String]') {
+                    push @assumptions, "\t$attribname match {case Some($attribname) => assume($attribname.length <= $len, \"$attribname must be at most $len characters\"); case None => {}}";
                 } elsif ($type eq 'BigDecimal') {
                     my ($l, $r) = split ',', $len;
 
@@ -336,6 +338,15 @@ EOF
                     my $max = $r ? sprintf '%d.%d', 9 x $l, 9 x $r : 9 x $l;
 
                     push @assumptions, "\tassume($attribname <= $max && $attribname >= -$max, \"$attribname must be between -$max and $max inclusive\")";
+                } elsif ($type eq 'Option[BigDecimal]') {
+                    my ($l, $r) = split ',', $len;
+
+                    $r ||= 0;
+                    $l -= $r;
+
+                    my $max = $r ? sprintf '%d.%d', 9 x $l, 9 x $r : 9 x $l;
+
+                    push @assumptions, "\t$attribname match {case Some($attribname) => assume($attribname <= $max && $attribname >= -$max, \"$attribname must be between -$max and $max inclusive\"); case None => {}}";
                 }
             }
 

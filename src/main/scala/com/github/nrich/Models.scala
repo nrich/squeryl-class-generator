@@ -19,21 +19,23 @@ class ExampleDb2ObjectLong extends KeyedEntity[Long] {
 class Invoice (
 	var amount: BigDecimal,
 	var created: Timestamp,
+	var note: Option[String],
 	@Column("payer_id")
 	var payerId: Option[Int],
 	var processed: Option[Timestamp],
+	var refund: Option[BigDecimal],
 	var state: InvoiceState.Enum,
 	@Column("user_id")
 	var userId: Int
 ) extends ExampleDb2ObjectInt {
 	def this() =
-		this(BigDecimal(0.0), new Timestamp(System.currentTimeMillis), None, None, InvoiceState.from(3), 0)
+		this(BigDecimal(0.0), new Timestamp(System.currentTimeMillis), None, None, None, None, InvoiceState.from(3), 0)
 	def this(amount: BigDecimal, userId: Int) =
-		this(amount, new Timestamp(System.currentTimeMillis), None, None, InvoiceState.from(3), userId)
+		this(amount, new Timestamp(System.currentTimeMillis), None, None, None, None, InvoiceState.from(3), userId)
 	def this(amount: BigDecimal, user: User) =
-		this(amount, new Timestamp(System.currentTimeMillis), None, None, InvoiceState.from(3), user.id)
-	def this(amount: BigDecimal, created: Timestamp, payer: Option[User], processed: Option[Timestamp], state: InvoiceState.Enum, user: User) =
-		this(amount, created, payer match {case None => None; case Some(payer) => Some(payer.id)}, processed, state, user.id)
+		this(amount, new Timestamp(System.currentTimeMillis), None, None, None, None, InvoiceState.from(3), user.id)
+	def this(amount: BigDecimal, created: Timestamp, note: Option[String], payer: Option[User], processed: Option[Timestamp], refund: Option[BigDecimal], state: InvoiceState.Enum, user: User) =
+		this(amount, created, note, payer match {case None => None; case Some(payer) => Some(payer.id)}, processed, refund, state, user.id)
 	def payment: Option[Payment] =
 		ExampleSchema.example_payment_invoice_id_fkey.left(this).headOption
 	def payer: Option[User] =
@@ -56,6 +58,8 @@ class Invoice (
 		return this
 	}
 	assume(amount <= 999.99 && amount >= -999.99, "amount must be between -999.99 and 999.99 inclusive")
+	note match {case Some(note) => assume(note.length <= 254, "note must be at most 254 characters"); case None => {}}
+	refund match {case Some(refund) => assume(refund <= 999.99 && refund >= -999.99, "refund must be between -999.99 and 999.99 inclusive"); case None => {}}
 }
 
 object InvoiceState extends Enumeration {
@@ -299,6 +303,8 @@ object ExampleSchema extends Schema {
 		s.id			is(autoIncremented("example_invoice_id_seq")),
 		s.amount		is(dbType("numeric(5,2)")),
 		s.created		defaultsTo(new Timestamp(System.currentTimeMillis)),
+		s.note		is(dbType("character varying(254)")),
+		s.refund		is(dbType("numeric(5,2)")),
 		s.state		defaultsTo(InvoiceState.from(3))
 	))
 
