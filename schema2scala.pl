@@ -552,6 +552,10 @@ EOF
             my $type = $structure->{$table}->{columns}->{$column}->{type}; 
             my $len = $structure->{$table}->{columns}->{$column}->{length}; 
 
+            if ($type eq 'inet') {
+                push @attribs,  'dbType("inet").explicitCast';
+            }
+
             if ($len) {
                 push @attribs, "dbType(\"$type($len)\")";
             } elsif ($type eq 'text') {
@@ -674,6 +678,7 @@ sub type_lookup {
         'float' => 'float',
         'real' => 'float',
         'geometry' => 'String',
+        'inet' => 'String',
     }->{lc $type}||die "Unknown type `$type'\n";
 
     if ($nullable) {
@@ -720,10 +725,7 @@ sub type_default {
     }
 
     if ($nullable) {
-        return {
-#            'Option[Int]' => 'Some(0)',
-#            'Option[Long]' => 'Some(0L)',
-        }->{$type} || 'None';
+        return 'None';
     }
 
     my $default = {
