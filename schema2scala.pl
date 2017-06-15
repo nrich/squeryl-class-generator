@@ -427,6 +427,10 @@ EOF
 
                     my $oa = attribname($othercol);
 
+                    if (reserved_name($otherattrib)) {
+                        $otherattrib = $otherattrib . 'val';
+                    }
+
                     if ($structure->{$othertable}->{enum}) {
                         
                     } else {
