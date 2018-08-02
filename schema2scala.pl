@@ -766,7 +766,7 @@ sub pluralize {
 
     $text = $text =~ /sh?$/ ? "${text}es" : "${text}s";
     $text =~ s/eses$/es/;
-    $text =~ s/ys$/ies/;
+    $text =~ s/([^aeiou])ys$/$1ies/;
 
     return $text;
 }
@@ -931,7 +931,6 @@ EOF
 
     my $structure = {};
     while (my ($column, $datatype, $table, $len, $nullable, $default, $numeric_precision_radix, $numeric_scale, $udt_name) = $sth->fetchrow_array()) {
-
         if ($table =~ /lookup$/ and $column ne 'id') {
             my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
             $rsth->execute();
