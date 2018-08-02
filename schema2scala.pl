@@ -408,6 +408,8 @@ EOF
                         push @fkeys, "\tdef $optcol: Option[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).headOption";
                     } else {
                         push @fkeys, "\tlazy val $plural: OneToMany[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this)";
+			(my $deplural = $plural) =~ s/((?:ie)?s)$//g;
+                        push @fkeys, "\tlazy val ${deplural}List: List[$otherclassname] =\n\t\t${schema_name}Schema.${fkey}.left(this).toList";
                     }
                 }
             } 
