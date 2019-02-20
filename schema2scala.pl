@@ -124,6 +124,10 @@ class ${schema_name}Db2ObjectLong extends KeyedEntity[Long] {
 \tval id: Long = 0
 }
 
+class ${schema_name}Db2ObjectString extends KeyedEntity[String] {
+\tval id: String = ""
+}
+
 EOF
 
     for my $table (sort keys %$structure) {
@@ -213,7 +217,8 @@ EOF
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
             if ($column eq 'id') {
                 $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});
-                next;
+
+                next if is_integer($structure->{$table}->{columns}->{$column}->{type});
             }
 
             my $attribname = attribname($column);
@@ -322,7 +327,11 @@ EOF
                 $col .= "\t\@Column(\"$column\")\n";
             }
 
-            $col .= "\tvar $attribname: $type";
+	    if ($attribname eq 'id') {
+		$col .= "\toverride val $attribname: $type";
+	    } else {
+		$col .= "\tvar $attribname: $type";
+	    }
 
             if (my $len = $structure->{$table}->{columns}->{$column}->{length}) {
                 if ($type eq 'String') {
@@ -523,7 +532,7 @@ EOF
 
         my $multi_unique = {};
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
-            if ($column eq 'id') {
+            if ($column eq 'id' && is_integer($structure->{$table}->{columns}->{$column}->{type})) {
                 unshift @declarations, "\t\ts.id\t\t\tis(autoIncremented(\"${table}_id_seq\"))";
                 next;
             }
@@ -658,6 +667,17 @@ EOF
 }
 
 EOF
+}
+
+sub is_integer {
+    my ($type) = @_;
+
+    return {
+        'integer' => 1,
+        'int' => 1,
+        'bigint' => 1,
+        'smallint' => 1,
+    }->{lc $type}||0;
 }
 
 sub type_lookup {
