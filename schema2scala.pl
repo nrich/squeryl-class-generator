@@ -218,7 +218,7 @@ EOF
             if ($column eq 'id') {
                 $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});
 
-                next if is_integer($structure->{$table}->{columns}->{$column}->{type});
+		next if $structure->{$table}->{columns}->{$column}->{autoincrement};
             }
 
             my $attribname = attribname($column);
@@ -532,7 +532,7 @@ EOF
 
         my $multi_unique = {};
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
-            if ($column eq 'id' && is_integer($structure->{$table}->{columns}->{$column}->{type})) {
+            if ($column eq 'id' && $structure->{$table}->{columns}->{$column}->{autoincrement}) {
                 unshift @declarations, "\t\ts.id\t\t\tis(autoIncremented(\"${table}_id_seq\"))";
                 next;
             }
@@ -861,7 +861,7 @@ sub generateSchemaData {
         my $tableinfo = $dbh->prepare("PRAGMA table_info($table)");
         $tableinfo->execute();
 
-        while (my (undef, $column, $datatype, $notnullable, $default) = $tableinfo->fetchrow_array()) {
+        while (my (undef, $column, $datatype, $notnullable, $default, $pk) = $tableinfo->fetchrow_array()) {
             my $len = undef;
 
             if ($datatype =~ /^(.+?)\((.+?)\)$/) {
@@ -881,6 +881,8 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
+	    my $autoincrement = ($column eq 'id' && $pk) ? 1 : 0;
+
             $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
             $structure->{$table}->{columns}->{$column} = {
@@ -888,6 +890,7 @@ sub generateSchemaData {
                 length => $len,
                 nulls => $notnullable ? 'NO' : 'YES',
                 default => $default,
+		autoincrement => $autoincrement,
             };
         }
     }
@@ -965,6 +968,7 @@ EOF
             $structure->{$table}->{enum} = \@enum;
         }
 
+	my $autoincrement = ($default && $default =~ /^nextval/) ? 1 : 0;
         $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
         if ($numeric_scale) {
@@ -976,6 +980,7 @@ EOF
             length => $len,
             nulls => $nullable,
             default => $default,
+	    autoincrement => $autoincrement,
         };
     }
 
@@ -1075,7 +1080,7 @@ sub generateSchemaData {
         my $tableinfo = $dbh->prepare("SHOW COLUMNS FROM $table");
         $tableinfo->execute();
 
-        while (my ($column, $datatype, $nullable, undef, $default) = $tableinfo->fetchrow_array()) {
+        while (my ($column, $datatype, $nullable, undef, $default, $extra) = $tableinfo->fetchrow_array()) {
             my $len = undef;
 
             if ($datatype eq 'int(11)') {
@@ -1097,6 +1102,7 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
+	    my $autoincrement = ($extra && $extra =~ /auto_increment/) ? 1 : 0;
             $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
             $structure->{$table}->{columns}->{$column} = {
@@ -1104,6 +1110,7 @@ sub generateSchemaData {
                 length => $len,
                 nulls => $nullable,
                 default => $default,
+		autoincrement => $autoincrement,
             };
         }
     }
