@@ -214,7 +214,9 @@ EOF
 
         my $idtype = 'Long';
 
-        for my $column (sort keys %{$structure->{$table}->{columns}}) {
+	for my $column ('id', grep !/^id$/, sort keys %{$structure->{$table}->{columns}}) {
+	    next unless $structure->{$table}->{columns}->{$column};
+
             if ($column eq 'id') {
                 $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});
 
