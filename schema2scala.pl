@@ -726,6 +726,9 @@ sub type_default {
             if ($defaultval =~ /^'(.*?)'\:\:character varying/) {
                 return "\"$1\"";
             }
+            if ($defaultval =~ /^'(.*?)'\:\:text/) {
+                return "\"$1\"";
+            }
         } elsif ($type eq 'Timestamp') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Timestamp.valueOf(\"$1\")";
