@@ -479,7 +479,7 @@ EOF
 
 	my $classdef = $classname =~ /Lookup$/ ? 'private def' : 'def';
 
-        if (scalar @no_default != scalar @build_default) {
+        if (scalar @no_default and scalar @no_default != scalar @build_default) {
             $build_default_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', @build_default) . ')';
         }
 
