@@ -710,6 +710,7 @@ sub type_lookup {
         'real' => 'float',
         'geometry' => 'String',
         'inet' => 'String',
+        'bytea' => 'Array[Byte]',
     }->{lc $type}||die "Unknown type `$type'\n";
 
     if ($nullable) {
@@ -773,6 +774,7 @@ sub type_default {
         'BigDecimal' => 'BigDecimal(0.0)',
         'double' => '0.0',
         'float' => '0.0',
+        'Array[Byte]' => 'Array[Byte]()',
     }->{$type};
 
     die "Unknown type `$type'\n" unless defined $default;
