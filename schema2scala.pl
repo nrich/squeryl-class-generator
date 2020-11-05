@@ -709,8 +709,8 @@ sub type_lookup {
     my $newtype = {
         'character varying' => 'String',
         'varchar' => 'String',
-        'integer' => 'Long',
-        'int' => 'Long',
+        'integer' => 'Int',
+        'int' => 'Int',
         'bigint' => 'Long',
         'boolean' => 'Boolean',
         'date' => 'Date',
