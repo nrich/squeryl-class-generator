@@ -56,6 +56,24 @@ sub main {
         );
         
         $schemaObj = PostgresSchema->new($dbh);
+    } elsif ($type eq 'cockroachdb' || $type eq 'cockroach') {
+        my $username = $opts{u} or usage();
+        my $password = $opts{p} or usage();
+        my $port = $opts{P} || '26257';
+
+        $schema ||= $dbname;
+
+        my $dbh = DBI->connect(
+            "DBI:Pg:dbname=$dbname;host=$host;port=$port",
+            $username,
+            $password,
+            {
+                AutoCommit => 0,
+                RaiseError => 1
+            }
+        );
+        
+        $schemaObj = CockroachSchema->new($dbh);
     } elsif ($type eq 'mysql') {
         my $username = $opts{u} or usage();
         my $password = $opts{p} or usage();
@@ -691,8 +709,8 @@ sub type_lookup {
     my $newtype = {
         'character varying' => 'String',
         'varchar' => 'String',
-        'integer' => 'Int',
-        'int' => 'Int',
+        'integer' => 'Long',
+        'int' => 'Long',
         'bigint' => 'Long',
         'boolean' => 'Boolean',
         'date' => 'Date',
@@ -733,10 +751,19 @@ sub type_default {
             if ($defaultval =~ /^'(.*?)'\:\:text/) {
                 return "\"$1\"";
             }
+            if ($defaultval =~ /^'(.*?)'\:\:\:STRING/) {
+                return "\"$1\"";
+            }
+        } elsif ($type eq 'Long') {
+            if ($defaultval =~ /^(.+?)\:\:\:INT8/) {
+                return "$1L";
+            }
         } elsif ($type eq 'Timestamp') {
             if ($defaultval =~ /^'(.+?)'\:\:date/) {
                 return "Timestamp.valueOf(\"$1\")";
             } elsif ($defaultval =~ /^'(.+?)'\:\:timestamp/) {
+                return "Timestamp.valueOf(\"$1\")";
+            } elsif ($defaultval =~ /^'(.+?)'\:\:\:TIMESTAMP/) {
                 return "Timestamp.valueOf(\"$1\")";
             } elsif ($defaultval =~ /^'(.+?)'/) {
                 return "Timestamp.valueOf(\"$1\")";
@@ -756,6 +783,7 @@ sub type_default {
             'now()' => 'new Timestamp(System.currentTimeMillis)',
             'current_timestamp' => 'new Timestamp(System.currentTimeMillis)',
             'CURRENT_TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
+            'current_timestamp():::TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
         }->{$defaultval} || $defaultval;
     }
 
@@ -1165,6 +1193,139 @@ EOF
         while (my ($column, $index, $not_unique) = $indexlist->fetchrow_array()) {
             $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $not_unique ? 0 : 1;
         }
+    }
+
+    return $structure;
+}
+
+1;
+
+package CockroachSchema;
+use base 'BaseSchema';
+
+sub generateSchemaData {
+    my ($self, $schema) = @_;
+
+    my $structure = $self->_generateStructure($schema);
+
+    for my $table (sort keys %$structure) {
+        $self->_generateIndex($structure, $table); 
+        $self->_generateFkeys($structure, $table); 
+    }
+
+    return $structure;
+}
+
+sub _generateStructure {
+    my ($self, $schema) = @_;
+
+    my $dbh = $self->{dbh};
+
+    my $column_query =<<EOF;
+select column_name, data_type,table_name,character_maximum_length,is_nullable,column_default,numeric_precision,numeric_scale,udt_name
+from information_schema.columns 
+where (table_name like '${schema}_%' or table_name = 'auth_user') and is_updatable = 'YES'
+EOF
+
+    my $sth = $dbh->prepare($column_query);
+    $sth->execute();
+
+    my $structure = {};
+    while (my ($column, $datatype, $table, $len, $nullable, $default, $numeric_precision_radix, $numeric_scale, $udt_name) = $sth->fetchrow_array()) {
+        if ($table =~ /lookup$/ and $column ne 'id') {
+            my $rsth = $dbh->prepare("SELECT id, $column FROM $table ORDER BY id"); 
+            $rsth->execute();
+
+            my @enum = ();
+            while (my ($id, $name) = $rsth->fetchrow_array()) {
+                push @enum, [$id, $name];
+            }
+
+            $structure->{$table}->{enum} = \@enum;
+        }
+
+	my $autoincrement = ($default && $default =~ /^unique_rowid/) ? 1 : 0;
+        $default = defined $default && $default =~ /^unique_rowid/ ? undef : $default;
+
+        if ($numeric_scale) {
+            $len = "$numeric_precision_radix,$numeric_scale";
+        }
+
+        $structure->{$table}->{columns}->{$column} = {
+            type => $datatype eq 'USER-DEFINED' ? $udt_name : $datatype,
+            length => $len,
+            nulls => $nullable,
+            default => $default,
+	    autoincrement => $autoincrement,
+        };
+    }
+
+    $sth->finish();
+
+    return $structure;
+}
+
+sub _generateIndex {
+    my ($self, $structure, $tablename) = @_;
+
+    my $dbh = $self->{dbh};
+
+    my $index_query =<<EOF;
+select
+    t.relname as table_name,
+    i.relname as index_name,
+    a.attname as column_name,
+    ix.indisunique as is_unique
+from
+    pg_class t,
+    pg_class i,
+    pg_index ix,
+    pg_attribute a
+where
+    t.oid = ix.indrelid
+    and i.oid = ix.indexrelid
+    and a.attrelid = t.oid
+    and a.attnum = ANY(ix.indkey)
+    and t.relkind = 'r'
+    and t.relname=?
+EOF
+
+    my $sth = $dbh->prepare($index_query);
+    $sth->execute($tablename);
+
+    while (my ($table, $index, $column, $is_unique) = $sth->fetchrow_array()) {
+        $structure->{$table}->{columns}->{$column}->{indexes}->{$index} = $is_unique;
+    }
+
+    return $structure;
+}
+
+sub _generateFkeys {
+    my ($self, $structure, $tablename) = @_;
+
+    my $dbh = $self->{dbh};
+
+    my $fkey_query =<<EOF;
+SELECT 
+    tc.table_name, kcu.column_name, 
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name 
+FROM 
+    information_schema.table_constraints AS tc 
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
+WHERE constraint_type = 'FOREIGN KEY' and tc.table_name=?
+EOF
+
+    my $sth = $dbh->prepare($fkey_query);
+    $sth->execute($tablename);
+
+    while (my ($table, $column, $ftable, $fcolumn) = $sth->fetchrow_array()) {
+        my $name = "${table}_${column}_fkey";
+        $structure->{$table}->{columns}->{$column}->{refers}->{$ftable}->{$fcolumn} = $name;
+        $structure->{$ftable}->{columns}->{$fcolumn}->{referred}->{$table}->{$column} = $name;
     }
 
     return $structure;
