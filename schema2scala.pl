@@ -8,7 +8,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Std qw/getopts/;
 
 my %opts = ();
-getopts('hd:u:p:c:S:H:P:T:', \%opts);
+getopts('hd:u:p:c:S:H:P:T:C', \%opts);
 main(@ARGV);
 
 sub usage {
@@ -22,6 +22,7 @@ Usage: $0
     [-P port|5432|3306]
     [-S schema prefix|dbname] - require for Sqlite
     [-T database type|Postgres]
+    [-C generate extra case classes|false]
 EOF
 
     exit 1;
@@ -216,7 +217,9 @@ EOF
             $classname .= "Lookup";
         }
 
+        my @attribs = ();
         my @cols = ();
+        my @simplecols = ();
         my @defaults = ();
         my @no_default = ();
         my @build_default = ();
@@ -242,6 +245,7 @@ EOF
             }
 
             my $attribname = attribname($column);
+            push @attribs, $attribname;
             my $nullable = uc $structure->{$table}->{columns}->{$column}->{nulls} eq 'YES' ? 1 : 0;
             my $default = $structure->{$table}->{columns}->{$column}->{default};
 
@@ -343,10 +347,6 @@ EOF
 
             my $col = '';
 
-            if ($attribname ne $column) {
-                $col .= "\t\@Column(\"$column\")\n";
-            }
-
 	    if ($attribname eq 'id') {
 		$col .= "\toverride val $attribname: $type";
 	    } else {
@@ -377,6 +377,12 @@ EOF
 
                     push @assumptions, "\t$attribname match {case Some($attribname) => assume($attribname <= $max && $attribname >= -$max, \"$attribname must be between -$max and $max inclusive\"); case None => {}}";
                 }
+            }
+
+            push @simplecols, $col;
+
+            if ($attribname ne $column) {
+                $col = "\t\@Column(\"$column\")\n$col";
             }
 
             push @cols, $col;
@@ -519,6 +525,29 @@ EOF
         my $fkeyslist = join "\n", @fkeys;
         $fkeyslist ||= "\t//No foreign keys";
 
+        my $simple_attrib = "\t//No case class";
+
+        if ($opts{C} && $classname !~ /Lookup$/) {
+            my $simplecollist = join ",\n", @simplecols;
+            my $id_default = type_default($idtype, 0);
+            my $objname = lcfirst $classname;
+            my $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', ($id_default, @build_default)) . ')';
+            my $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} ('id', @attribs)). ')';
+            $simple_attrib = "\tdef ${objname}Simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
+            my $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@attribs)). ")";
+
+            print <<EOF;
+final case class ${classname}Simple (
+\tvar id: ${idtype},
+$simplecollist
+) {
+$build_simple_list
+$build_copy_list
+$full_attrib
+}
+EOF
+        }
+
         print <<EOF;
 class $classname (
 $collist
@@ -529,6 +558,7 @@ $build_default_list
 $build_default_obj_list
 $default_obj_list
 $fkeyslist
+$simple_attrib
 $assumptionslist
 }
 
