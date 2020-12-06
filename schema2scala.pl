@@ -131,6 +131,7 @@ import org.squeryl.PrimitiveTypeMode._
 import org.squeryl.Schema
 import org.squeryl.annotations.{Column, Transient}
 import java.sql.Date
+import java.util.UUID
 import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
@@ -624,6 +625,10 @@ EOF
                 push @attribs,  'dbType("inet").explicitCast';
             }
 
+            if ($type eq 'uuid') {
+                push @attribs,  'dbType("uuid").explicitCast';
+            }
+
             if ($len) {
                 push @attribs, "dbType(\"$type($len)\")";
             } elsif ($type eq 'text') {
@@ -758,6 +763,7 @@ sub type_lookup {
         'real' => 'float',
         'geometry' => 'String',
         'inet' => 'String',
+        'uuid' => 'String',
         'bytea' => 'Array[Byte]',
     }->{lc $type}||die "Unknown type `$type'\n";
 
@@ -814,6 +820,7 @@ sub type_default {
             'current_timestamp' => 'new Timestamp(System.currentTimeMillis)',
             'CURRENT_TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
             'current_timestamp():::TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
+            'gen_random_uuid()' => 'UUID.randomUUID().toString()',
         }->{$defaultval} || $defaultval;
     }
 
