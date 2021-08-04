@@ -887,9 +887,14 @@ sub attribname {
     my $reservedmangle = reserved_name($column);
     return $reservedmangle if $reservedmangle;
 
+    my $joinwords = {
+        'and' => 1,
+        'or' => 1,
+    };
+
     my $attribname = lc $column;
     $attribname =~ s/_id$/Id/g;
-    $attribname = lcfirst join '', map {ucfirst $_} split /[\_\-\s]/, $attribname;
+    $attribname = lcfirst join '', map {$joinwords->{$_} ? $_ : ucfirst $_} split /[\_\-\s]/, $attribname;
 
     return $attribname;
 }
