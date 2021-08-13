@@ -23,6 +23,7 @@ Usage: $0
     [-S schema prefix|dbname] - require for Sqlite
     [-T database type|Postgres]
     [-C generate extra case classes|false]
+    [-J add JSON support|false]
 EOF
 
     exit 1;
@@ -135,7 +136,19 @@ import java.util.UUID
 import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
+EOF
 
+    if ($opts{J}) {
+        print <<EOF;
+import org.json4s.{DefaultFormats, Formats, MappingException}
+import org.json4s.jackson.Serialization._
+import org.json4s.jackson.Serialization
+import org.json4s._
+import org.scalatra.json._
+EOF
+    }
+
+    print <<EOF;
 class ${schema_name}Db2ObjectInt extends KeyedEntity[Int] {
 \tval id: Int = 0
 }
@@ -149,6 +162,8 @@ class ${schema_name}Db2ObjectString extends KeyedEntity[String] {
 }
 
 EOF
+
+    my @enums = ();
 
     for my $table (sort keys %$structure) {
         my $classname = table_to_classname($schema, $table);
@@ -175,6 +190,8 @@ EOF
                 push @ints, "\t\t\tcase $id => return $attrib";
                 push @strings, "\t\t\tcase \"$lcname\" => return $attrib";
             } 
+
+            push @enums, $classname;
 
             push @prints, "\t\t\tcase _ => throw new IllegalArgumentException";
             push @iprints, "\t\t\tcase _ => throw new IllegalArgumentException";
@@ -725,6 +742,32 @@ EOF
 }
 
 EOF
+
+    if ($opts{J}) {
+        my $serializers = map {"\t\tnew org.json4s.ext.EnumSerializer($_)\n"} @enums;
+        chomp $serializers;
+
+        print <<EOF;
+case object DateSerializer extends CustomSerializer[java.sql.Date](
+\tformat => (
+\t\t{
+\t\t\tcase JString(s) => Date.valueOf(s)
+\t\t\tcase JNull => null
+\t\t},
+\t\t{
+\t\t\tcase d: Date => JString(d.toString())
+\t\t}
+\t)
+)
+
+case object ${schema_name}SchemaEnumSerializer {
+\tdef all = List(
+$serializers
+\t)
+}
+
+EOF
+    }
 }
 
 sub is_integer {
