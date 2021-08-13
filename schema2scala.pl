@@ -8,7 +8,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Std qw/getopts/;
 
 my %opts = ();
-getopts('hd:u:p:c:S:H:P:T:C', \%opts);
+getopts('hd:u:p:c:S:H:P:T:CJ', \%opts);
 main(@ARGV);
 
 sub usage {
@@ -145,6 +145,7 @@ import org.json4s.jackson.Serialization._
 import org.json4s.jackson.Serialization
 import org.json4s._
 import org.scalatra.json._
+
 EOF
     }
 
@@ -744,7 +745,7 @@ EOF
 EOF
 
     if ($opts{J}) {
-        my $serializers = map {"\t\tnew org.json4s.ext.EnumSerializer($_)\n"} @enums;
+        my $serializers = join (",\n", map {"\t\tnew org.json4s.ext.EnumSerializer($_)"} @enums);
         chomp $serializers;
 
         print <<EOF;
