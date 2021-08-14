@@ -605,7 +605,7 @@ EOF
         my $multi_unique = {};
         for my $column (sort keys %{$structure->{$table}->{columns}}) {
             if ($column eq 'id' && $structure->{$table}->{columns}->{$column}->{autoincrement}) {
-                unshift @declarations, "\t\ts.id\t\t\tis(autoIncremented(\"${table}_id_seq\"))";
+                unshift @declarations, "\t\ts.id\t\t\tis($structure->{$table}->{columns}->{$column}->{autoincrement})";
                 next;
             }
 
@@ -1005,7 +1005,7 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
-	    my $autoincrement = ($column eq 'id' && $pk) ? 1 : 0;
+	    my $autoincrement = ($column eq 'id' && $pk) ? 'autoIncremented' : undef;
 
             $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
@@ -1092,7 +1092,15 @@ EOF
             $structure->{$table}->{enum} = \@enum;
         }
 
-	my $autoincrement = ($default && $default =~ /^nextval/) ? 1 : 0;
+	my $autoincrement = undef;
+
+        if ($default && $default =~ /^nextval/) {
+            my $seq = $dbh->prepare("SELECT pg_get_serial_sequence($table, $column)");
+            $seq->execute();
+            my ($id_seq) = $seq->fetchrow_array();
+            $seq->finish();
+            $autoincrement = "autoIncremented(\"$id_seq\")";
+        }
         $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
         if ($numeric_scale) {
@@ -1226,7 +1234,7 @@ sub generateSchemaData {
                 $structure->{$table}->{enum} = \@enum;
             }
 
-	    my $autoincrement = ($extra && $extra =~ /auto_increment/) ? 1 : 0;
+	    my $autoincrement = ($extra && $extra =~ /auto_increment/) ? 'autoIncremented' : undef;
             $default = defined $default && $default =~ /^nextval/ ? undef : $default;
 
             $structure->{$table}->{columns}->{$column} = {
@@ -1330,7 +1338,7 @@ EOF
             $structure->{$table}->{enum} = \@enum;
         }
 
-	my $autoincrement = ($default && $default =~ /^unique_rowid/) ? 1 : 0;
+	my $autoincrement = ($default && $default =~ /^unique_rowid/) ? 'autoIncremented' : undef;
         $default = defined $default && $default =~ /^unique_rowid/ ? undef : $default;
 
         if ($numeric_scale) {
