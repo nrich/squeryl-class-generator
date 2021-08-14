@@ -1095,7 +1095,7 @@ EOF
 	my $autoincrement = undef;
 
         if ($default && $default =~ /^nextval/) {
-            my $seq = $dbh->prepare("SELECT pg_get_serial_sequence($table, $column)");
+            my $seq = $dbh->prepare("SELECT pg_get_serial_sequence('$table', '$column')");
             $seq->execute();
             my ($id_seq) = $seq->fetchrow_array();
             $seq->finish();
