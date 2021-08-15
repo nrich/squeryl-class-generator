@@ -917,11 +917,58 @@ sub pluralize {
 sub reserved_name {
     my ($name) = @_;
 
-    return {
-        type => $opts{Q} ? "`type`" : 'typeval',
-        private => $opts{Q} ? "`private`" : 'privateval',
-        package => $opts{Q} ? "`package`" : 'packageval',
-    }->{lc $name};
+    my $reserved = {
+        abstract => 1,
+        case => 1,
+        catch => 1,
+        class => 1,
+        def => 1,
+        do => 1,
+        else => 1,
+        extends => 1,
+        false => 1,
+        final => 1,
+        finally => 1,
+        for => 1,
+        #forSome => 1,
+        if => 1,
+        implicit => 1,
+        import => 1,
+        lazy => 1,
+        match => 1,
+        new => 1,
+        null => 1,
+        object => 1,
+        override => 1,
+        package => 1,
+        private => 1,
+        protected => 1,
+        return => 1,
+        sealed => 1,
+        super => 1,
+        this => 1,
+        throw => 1,
+        trait => 1,
+        try => 1,
+        true => 1,
+        type => 1,
+        val => 1,
+        var => 1,
+        while => 1,
+        with => 1,
+        yield => 1,
+    };
+
+    if ($name eq 'forSome' || $name eq 'for_some') {
+        return $opts{Q} ? "`forSome`" : "forSomeval";
+    }
+
+    my $lcname = $name;
+    if ($reserved->{$lcname}) {
+        return $opts{Q} ? "`$lcname`" : "${lcname}val";
+    }
+
+    return undef;
 }
 
 sub attribname {
