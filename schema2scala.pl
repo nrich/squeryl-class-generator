@@ -8,7 +8,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Std qw/getopts/;
 
 my %opts = ();
-getopts('hd:u:p:c:S:H:P:T:CJ', \%opts);
+getopts('hd:u:p:c:S:H:P:T:CJQ', \%opts);
 main(@ARGV);
 
 sub usage {
@@ -24,6 +24,7 @@ Usage: $0
     [-T database type|Postgres]
     [-C generate extra case classes|false]
     [-J add JSON support|false]
+    [-Q use backticks to quote reserved word atributes|false]
 EOF
 
     exit 1;
@@ -144,7 +145,6 @@ import org.json4s.{DefaultFormats, Formats, MappingException}
 import org.json4s.jackson.Serialization._
 import org.json4s.jackson.Serialization
 import org.json4s._
-import org.scalatra.json._
 
 EOF
     }
@@ -239,6 +239,7 @@ EOF
         my @attribs = ();
         my @cols = ();
         my @simplecols = ();
+        my @simpleattribs = ();
         my @defaults = ();
         my @no_default = ();
         my @build_default = ();
@@ -294,8 +295,9 @@ EOF
                         push @build_default_full, "$attribname";
                         push @default_full, "$attribname: $type"; 
                     } else {
+                        my $otherparam = attribname($othertype);
                         if ($nullable) {
-                            push @build_default_full, "$paramname match {case None => None; case Some($paramname) => Some($paramname.$otherattrib)}";
+                            push @build_default_full, "$paramname match {case None => None; case Some($otherparam) => Some($otherparam.$otherattrib)}";
                             push @default_full, "${paramname}: Option[${othertype}]"; 
                         } else {
                             $has_full_obj = 1;
@@ -370,6 +372,7 @@ EOF
 		$col .= "\toverride val $attribname: $type";
 	    } else {
 		$col .= "\tvar $attribname: $type";
+                push @simpleattribs, $attribname;
 	    }
 
             if (my $len = $structure->{$table}->{columns}->{$column}->{length}) {
@@ -486,9 +489,7 @@ EOF
 
                     my $oa = attribname($othercol);
 
-                    if (reserved_name($otherattrib)) {
-                        $otherattrib = $otherattrib . 'val';
-                    }
+                    $otherattrib = reserved_name($otherattrib) || $otherattrib;
 
                     if ($structure->{$othertable}->{enum}) {
                         
@@ -551,9 +552,9 @@ EOF
             my $id_default = type_default($idtype, 0);
             my $objname = lcfirst $classname;
             my $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', ($id_default, @build_default)) . ')';
-            my $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} ('id', @attribs)). ')';
+            my $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} ('id', @simpleattribs)). ')';
             $simple_attrib = "\tdef ${objname}Simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
-            my $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@attribs)). ")";
+            my $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@simpleattribs)). ")";
 
             print <<EOF;
 final case class ${classname}Simple (
@@ -761,8 +762,9 @@ case object DateSerializer extends CustomSerializer[java.sql.Date](
 \t)
 )
 
-case object ${schema_name}SchemaEnumSerializer {
+case object ${schema_name}SchemaSerializer {
 \tdef all = List(
+\t\tDateSerializer,
 $serializers
 \t)
 }
@@ -916,9 +918,9 @@ sub reserved_name {
     my ($name) = @_;
 
     return {
-        type => 'typeval',
-        private => 'privateval',
-        package => 'packageval',
+        type => $opts{Q} ? "`type`" : 'typeval',
+        private => $opts{Q} ? "`private`" : 'privateval',
+        package => $opts{Q} ? "`package`" : 'packageval',
     }->{lc $name};
 }
 
