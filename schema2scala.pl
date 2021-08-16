@@ -8,7 +8,7 @@ use Data::Dumper qw/Dumper/;
 use Getopt::Std qw/getopts/;
 
 my %opts = ();
-getopts('hd:u:p:c:S:H:P:T:CJQ', \%opts);
+getopts('hd:u:p:c:S:H:P:T:CJQL', \%opts);
 main(@ARGV);
 
 sub usage {
@@ -24,7 +24,7 @@ Usage: $0
     [-T database type|Postgres]
     [-C generate extra case classes|false]
     [-J add JSON support|false]
-    [-Q use backticks to quote reserved word atributes|false]
+    [-Q suffix reserved word atributes with 'Val' instead of using backticks|false]
 EOF
 
     exit 1;
@@ -137,6 +137,7 @@ import java.util.UUID
 import java.sql.Timestamp
 import org.squeryl.KeyedEntity
 import org.squeryl.dsl._
+
 EOF
 
     if ($opts{J}) {
@@ -149,7 +150,8 @@ import org.json4s._
 EOF
     }
 
-    print <<EOF;
+    if ($opts{L}) {
+        print <<EOF;
 class ${schema_name}Db2ObjectInt extends KeyedEntity[Int] {
 \tval id: Int = 0
 }
@@ -163,6 +165,7 @@ class ${schema_name}Db2ObjectString extends KeyedEntity[String] {
 }
 
 EOF
+    }
 
     my @enums = ();
 
@@ -261,7 +264,11 @@ EOF
             if ($column eq 'id') {
                 $idtype = type_lookup($structure->{$table}->{columns}->{$column}->{type});
 
-		next if $structure->{$table}->{columns}->{$column}->{autoincrement};
+                if ($opts{L}) {
+		    next if $structure->{$table}->{columns}->{$column}->{autoincrement};
+                } else {
+		    $structure->{$table}->{columns}->{$column}->{default} = type_default($idtype) if $structure->{$table}->{columns}->{$column}->{autoincrement};
+                }
             }
 
             my $attribname = attribname($column);
@@ -369,7 +376,12 @@ EOF
             my $col = '';
 
 	    if ($attribname eq 'id') {
-		$col .= "\toverride val $attribname: $type";
+                if ($opts{L}) {
+                    $col .= "\toverride val $attribname: $type";
+                } else {
+		    $col .= "\tval $attribname: $type";
+                }
+                push @simpleattribs, $attribname;
 	    } else {
 		$col .= "\tvar $attribname: $type";
                 push @simpleattribs, $attribname;
@@ -531,10 +543,20 @@ EOF
             $build_default_obj_list = "\t$classdef this(" . (join ', ', @no_default_obj) . ") =\n\t\tthis(" . (join ', ', @build_default_obj) . ')';  
 
             if (scalar @no_default_obj != scalar @default_full) {
-                $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+                if ($opts{L}) {
+                    $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+                } else {
+                    my $id_default = type_default($idtype, 0);
+                    $default_obj_list = "\t$classdef this(" . (join ', ', grep !/^id/, @default_full) . ") =\n\t\tthis(" . (join ', ', ($id_default, grep !/^id/, @build_default_full)) . ')';
+                }
             }
         } elsif ($has_full_obj) {
-            $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+            if ($opts{L}) {
+                $default_obj_list = "\t$classdef this(" . (join ', ', @default_full) . ") =\n\t\tthis(" . (join ', ', @build_default_full) . ')';
+            } else {
+                my $id_default = type_default($idtype, 0);
+                $default_obj_list = "\t$classdef this(" . (join ', ', grep !/^id/, @default_full) . ") =\n\t\tthis(" . (join ', ', ($id_default, grep !/^id/, @build_default_full)) . ')';
+            }
         }
 
         my $assumptionslist = join "\n", @assumptions;
@@ -551,14 +573,25 @@ EOF
             my $simplecollist = join ",\n", @simplecols;
             my $id_default = type_default($idtype, 0);
             my $objname = lcfirst $classname;
-            my $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', ($id_default, @build_default)) . ')';
-            my $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} ('id', @simpleattribs)). ')';
-            $simple_attrib = "\tdef ${objname}Simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
-            my $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@simpleattribs)). ")";
+
+            my $build_simple_list;
+            my $build_copy_list;
+            my $full_attrib;
+
+            if ($opts{L}) {
+                $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', (@build_default)) . ')';
+                $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} (@simpleattribs)). ')';
+                $simple_attrib = "\tdef simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
+                $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@simpleattribs)). ")";
+            } else {
+                $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', (@build_default)) . ')';
+                $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} (@simpleattribs)). ')';
+                $simple_attrib = "\tdef simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
+                $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} @simpleattribs). ")";
+            }
 
             print <<EOF;
 final case class ${classname}Simple (
-\tvar id: ${idtype},
 $simplecollist
 ) {
 $build_simple_list
@@ -568,10 +601,12 @@ $full_attrib
 EOF
         }
 
+        my $baseclass = $opts{L} ? "${schema_name}Db2Object${idtype}" : "KeyedEntity[${idtype}]";
+
         print <<EOF;
 class $classname (
 $collist
-) extends ${schema_name}Db2Object${idtype} {
+) extends $baseclass {
 \t$classdef this() =
 \t\tthis($default_list)
 $build_default_list
@@ -750,7 +785,7 @@ EOF
         chomp $serializers;
 
         print <<EOF;
-case object DateSerializer extends CustomSerializer[java.sql.Date](
+private case object DateSerializer extends CustomSerializer[java.sql.Date](
 \tformat => (
 \t\t{
 \t\t\tcase JString(s) => Date.valueOf(s)
@@ -960,12 +995,12 @@ sub reserved_name {
     };
 
     if ($name eq 'forSome' || $name eq 'for_some') {
-        return $opts{Q} ? "`forSome`" : "forSomeval";
+        return $opts{Q} ? "forSomeVal" : "`forSome`";
     }
 
     my $lcname = $name;
     if ($reserved->{$lcname}) {
-        return $opts{Q} ? "`$lcname`" : "${lcname}val";
+        return $opts{Q} ? "${lcname}Val" : "`$lcname`";
     }
 
     return undef;
