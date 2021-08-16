@@ -570,6 +570,10 @@ EOF
         my $simple_attrib = "\t//No case class";
 
         if ($opts{C} && $classname !~ /Lookup$/) {
+            if ($opts{L}) {
+                unshift @simplecols, "\tvar id: ${idtype}";
+            }
+
             my $simplecollist = join ",\n", @simplecols;
             my $id_default = type_default($idtype, 0);
             my $objname = lcfirst $classname;
@@ -579,8 +583,8 @@ EOF
             my $full_attrib;
 
             if ($opts{L}) {
-                $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', (@build_default)) . ')';
-                $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} (@simpleattribs)). ')';
+                $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', ($id_default, @build_default)) . ')';
+                $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} ('id', @simpleattribs)). ')';
                 $simple_attrib = "\tdef simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
                 $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@simpleattribs)). ")";
             } else {
