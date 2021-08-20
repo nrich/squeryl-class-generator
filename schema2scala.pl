@@ -848,7 +848,7 @@ sub type_lookup {
         'real' => 'float',
         'geometry' => 'String',
         'inet' => 'String',
-        'uuid' => 'String',
+        'uuid' => 'UUID',
         'bytea' => 'Array[Byte]',
     }->{lc $type}||die "Unknown type `$type'\n";
 
@@ -905,7 +905,7 @@ sub type_default {
             'current_timestamp' => 'new Timestamp(System.currentTimeMillis)',
             'CURRENT_TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
             'current_timestamp():::TIMESTAMP' => 'new Timestamp(System.currentTimeMillis)',
-            'gen_random_uuid()' => 'UUID.randomUUID().toString()',
+            'gen_random_uuid()' => 'UUID.randomUUID()',
         }->{$defaultval} || $defaultval;
     }
 
