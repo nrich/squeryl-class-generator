@@ -585,13 +585,13 @@ EOF
             if ($opts{L}) {
                 $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', ($id_default, @build_default)) . ')';
                 $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} ('id', @simpleattribs)). ')';
-                $simple_attrib = "\tdef simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
-                $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} (@simpleattribs)). ")";
+                $simple_attrib = "\tdef simple:${classname}Simple =\n\t\tnew ${classname}Simple(this)";
+                $full_attrib = "\tdef $objname:${classname} = \n\t\tnew ${classname}(" . join(', ', map {"this.$_"} (@simpleattribs)). ")";
             } else {
                 $build_simple_list = "\t$classdef this(" . (join ', ', @no_default) . ") =\n\t\tthis(" . (join ', ', (@build_default)) . ')';
                 $build_copy_list = "\t$classdef this($objname: ${classname}) =\n\t\tthis(". join(', ', map {"$objname.$_"} (@simpleattribs)). ')';
-                $simple_attrib = "\tdef simple:${classname}Simple\n\t\t= new ${classname}Simple(this)";
-                $full_attrib = "\tdef $objname:${classname}\n\t\t= new ${classname}(" . join(', ', map {"this.$_"} @simpleattribs). ")";
+                $simple_attrib = "\tdef simple:${classname}Simple = \n\t\tnew ${classname}Simple(this)";
+                $full_attrib = "\tdef $objname:${classname} =\n\t\tnew ${classname}(" . join(', ', map {"this.$_"} @simpleattribs). ")";
             }
 
             print <<EOF;
